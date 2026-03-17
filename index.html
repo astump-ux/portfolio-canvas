@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portfolio · Aktienanalyse Canvas v2.2</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+:root{--bg:#0f0f12;--card:#1a1a1f;--card2:#22222a;--brd:#2e2e38;--txt:#e8e8ec;--mut:#888898;--dim:#555566;--pri:#FF6900;--grn:#22c55e;--red:#ef4444;--yel:#f59e0b;--blu:#3b82f6;--pur:#8b5cf6}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--txt);font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;line-height:1.6;min-height:100vh}
+button{cursor:pointer;font-family:inherit;font-size:13px}
+input,select,textarea{font-family:inherit;font-size:13px;background:var(--card2);color:var(--txt);border:1px solid var(--brd);border-radius:6px;padding:7px 10px;width:100%;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--pri)}
+select option{background:var(--card2)}
+label{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px}
+a{text-decoration:none}
+.hdr{background:linear-gradient(135deg,#1a0800,#2a1000 40%,var(--bg));border-bottom:1px solid var(--pri);padding:22px 28px 18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+.hdr h1{font-size:22px;font-weight:700;color:#fff;letter-spacing:-.5px}.hdr h1 span{color:var(--pri)}
+.hdr-sub{font-size:12px;color:var(--mut);margin-top:3px;display:flex;align-items:center;gap:8px}
+.sync-dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+.sync-dot.ok{background:var(--grn)}.sync-dot.err{background:var(--red)}.sync-dot.spin{background:var(--yel);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.hdr-stats{display:flex;gap:20px;flex-wrap:wrap}
+.hs{text-align:center}.hs-v{font-size:20px;font-weight:800;color:var(--pri)}.hs-l{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
+.tabs{background:var(--card);border-bottom:1px solid var(--brd);padding:0 28px;display:flex;gap:0;position:sticky;top:0;z-index:50;overflow-x:auto}
+.tab{background:none;border:none;color:var(--mut);padding:12px 16px;font-weight:600;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap}
+.tab:hover,.tab.active{color:var(--pri);border-bottom-color:var(--pri)}
+.main{max-width:1200px;margin:0 auto;padding:24px 28px 60px}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:24px}
+.kpi{background:var(--card);border:1px solid var(--brd);border-radius:10px;padding:12px 14px}
+.kpi-l{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.4px}
+.kpi-v{font-size:19px;font-weight:700;color:#fff;margin-top:3px}
+.kpi-s{font-size:11px;color:var(--mut);margin-top:1px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-bottom:24px}
+.pcard{background:var(--card);border:1px solid var(--brd);border-radius:12px;overflow:hidden;transition:border-color .2s}
+.pcard:hover{border-color:var(--pri)}
+.pcard-hdr{padding:14px 18px 10px;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid var(--brd)}
+.pcard-name{font-size:16px;font-weight:700;color:#fff}
+.pcard-tick{font-size:11px;color:var(--pri);font-weight:600;margin-top:2px}
+.pcard-price{font-size:18px;font-weight:800;color:var(--pri);text-align:right}
+.pcard-pm{font-size:10px;color:var(--mut);text-align:right}
+.pcard-body{padding:12px 18px}
+.sb{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.sb-track{flex:1;height:5px;background:var(--brd);border-radius:3px;overflow:hidden}
+.sb-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--pri),#ff9500)}
+.sb-num{font-weight:700;font-size:13px;min-width:28px;color:var(--pri)}
+.pills{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}
+.pill{font-size:10px;padding:2px 7px;border-radius:4px;font-weight:600}
+.pill-g{background:rgba(34,197,94,.12);color:var(--grn);border:1px solid rgba(34,197,94,.2)}
+.pill-y{background:rgba(245,158,11,.12);color:var(--yel);border:1px solid rgba(245,158,11,.2)}
+.pill-r{background:rgba(239,68,68,.12);color:var(--red);border:1px solid rgba(239,68,68,.2)}
+.pill-o{background:rgba(255,105,0,.12);color:var(--pri);border:1px solid rgba(255,105,0,.2)}
+.drow{display:flex;gap:14px;flex-wrap:wrap;margin:8px 0;font-size:12px}
+.di{display:flex;flex-direction:column}.di-l{font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.4px}
+.di-v{font-weight:600;color:var(--txt)}.di-v.g{color:var(--grn)}.di-v.r{color:var(--red)}
+.evts{margin-top:10px;padding-top:10px;border-top:1px solid var(--brd)}
+.evt-t{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px}
+.evt-i{font-size:11px;color:var(--mut);padding:2px 0;display:flex;gap:5px;align-items:flex-start}
+.edot{width:5px;height:5px;border-radius:50%;margin-top:4px;flex-shrink:0}
+.pcard-foot{padding:10px 18px;background:var(--card2);border-top:1px solid var(--brd);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px}
+.badges{display:flex;gap:5px;flex-wrap:wrap}
+.badge{font-size:11px;padding:2px 7px;border-radius:4px;font-weight:600}
+.lnks{display:flex;gap:5px}
+.lbtn{font-size:10px;padding:3px 9px;border-radius:5px;border:1px solid;font-weight:600;transition:all .2s;display:inline-block;cursor:pointer}
+.lbtn-a{border-color:rgba(255,105,0,.35);color:var(--pri);background:rgba(255,105,0,.07)}.lbtn-a:hover{background:rgba(255,105,0,.15)}
+.lbtn-c{border-color:rgba(59,130,246,.35);color:var(--blu);background:rgba(59,130,246,.07)}.lbtn-c:hover{background:rgba(59,130,246,.15)}
+.sec{background:var(--card);border:1px solid var(--brd);border-radius:12px;margin-bottom:20px;overflow:hidden}
+.sec-hdr{background:var(--card2);padding:12px 18px;font-size:14px;font-weight:700;color:#fff;border-bottom:1px solid var(--brd)}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:var(--card2);color:var(--mut);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;padding:9px 10px;text-align:left;border-bottom:1px solid var(--brd)}
+td{padding:9px 10px;border-bottom:1px solid rgba(46,46,56,.4);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,105,0,.03)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;align-items:center}
+.chip{background:var(--card);border:1px solid var(--brd);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:600;color:var(--mut);cursor:pointer;transition:all .2s}
+.chip:hover,.chip.active{background:rgba(255,105,0,.1);border-color:var(--pri);color:var(--pri)}
+.tl-mon{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--dim);padding:6px 0 5px;border-bottom:1px solid var(--brd);margin-bottom:8px;margin-top:18px}
+.tl-mon:first-child{margin-top:0}
+.tl-item{background:var(--card);border:1px solid var(--brd);border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;gap:12px}
+.tl-dot-col{display:flex;flex-direction:column;align-items:center;padding-top:3px}
+.tl-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.tl-body{flex:1;min-width:0}
+.tl-top{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;margin-bottom:4px}
+.tl-title{font-size:13px;font-weight:700;color:#fff}
+.tl-meta{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
+.tl-date{font-size:10px;color:var(--dim)}
+.tl-desc{font-size:12px;color:var(--mut);margin-bottom:6px;line-height:1.5}
+.tl-wd{background:rgba(255,105,0,.05);border:1px solid rgba(255,105,0,.12);border-radius:6px;padding:7px 10px;font-size:11px;color:var(--txt);line-height:1.6}
+.wd-row{display:flex;gap:5px;align-items:flex-start;margin-bottom:3px}.wd-row:last-child{margin-bottom:0}
+.wd-ico{font-size:11px;font-weight:700;flex-shrink:0;margin-top:1px;min-width:12px}
+.tl-lnks{display:flex;gap:5px;margin-top:7px;flex-wrap:wrap}
+.tl-h{border-left:3px solid var(--red)}.tl-m{border-left:3px solid var(--yel)}.tl-b{border-left:3px solid var(--blu)}.tl-l{border-left:3px solid var(--grn)}
+.co-list{display:flex;flex-direction:column;gap:10px}
+.co-row{background:var(--card);border:1px solid var(--brd);border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+.co-row:hover{border-color:var(--pri)}
+.co-info{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.co-name{font-size:15px;font-weight:700;color:#fff}
+.co-tick{font-size:11px;color:var(--pri);font-weight:600}
+.co-btns{display:flex;gap:6px;flex-wrap:wrap}
+.btn{border:1px solid var(--brd);background:var(--card2);color:var(--txt);border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;transition:all .2s}
+.btn:hover{border-color:var(--pri);color:var(--pri)}
+.btn-pri{border-color:rgba(255,105,0,.4);background:rgba(255,105,0,.1);color:var(--pri)}
+.btn-red{border-color:rgba(239,68,68,.3);background:rgba(239,68,68,.08);color:var(--red)}.btn-red:hover{background:rgba(239,68,68,.16)}
+.btn-grn{border-color:rgba(34,197,94,.3);background:rgba(34,197,94,.08);color:var(--grn)}.btn-grn:hover{background:rgba(34,197,94,.16)}
+.btn-blu{border-color:rgba(59,130,246,.3);background:rgba(59,130,246,.08);color:var(--blu)}.btn-blu:hover{background:rgba(59,130,246,.16)}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;overflow-y:auto;padding:30px 20px;display:flex;align-items:flex-start;justify-content:center}
+.modal{background:var(--card);border:1px solid var(--brd);border-radius:14px;width:100%;max-width:740px;overflow:hidden}
+.modal-hdr{background:var(--card2);padding:16px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--brd)}
+.modal-hdr h2{font-size:16px;font-weight:700;color:#fff}
+.close-btn{background:none;border:1px solid var(--brd);color:var(--mut);border-radius:6px;padding:4px 10px;font-size:13px}.close-btn:hover{border-color:var(--pri);color:var(--pri)}
+.modal-tabs{background:var(--card2);padding:0 20px;display:flex;border-bottom:1px solid var(--brd);overflow-x:auto}
+.mtab{background:none;border:none;color:var(--mut);padding:10px 14px;font-size:12px;font-weight:600;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap}
+.mtab.active{color:var(--pri);border-bottom-color:var(--pri)}
+.modal-body{padding:20px;max-height:65vh;overflow-y:auto}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.form-row.col3{grid-template-columns:1fr 1fr 1fr}
+.fld{margin-bottom:12px}
+.score-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.score-lbl{font-size:11px;color:var(--mut);min-width:110px}
+.score-inp{width:58px;text-align:center;padding:5px 6px}
+.score-bar-wrap{flex:1;height:5px;background:var(--brd);border-radius:3px;overflow:hidden;max-width:180px}
+.score-bar-live{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--pri),#ff9500);transition:width .2s}
+.avg-score-box{background:rgba(255,105,0,.08);border:1px solid rgba(255,105,0,.2);border-radius:8px;padding:12px 16px;text-align:center;margin-bottom:16px}
+.avg-score-box .big{font-size:28px;font-weight:800;color:var(--pri)}
+.avg-score-box .lbl{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.4px}
+.evt-card{background:var(--card2);border:1px solid var(--brd);border-radius:8px;padding:14px;margin-bottom:12px}
+.evt-card-hdr{font-size:12px;font-weight:700;color:var(--pri);margin-bottom:10px;text-transform:uppercase;letter-spacing:.4px}
+.wd-form{background:rgba(0,0,0,.2);border-radius:6px;padding:10px;margin-top:8px}
+.wd-form-title{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.wd-form-row{display:flex;gap:6px;align-items:flex-start;margin-bottom:6px}
+.wd-sel{width:100px;flex-shrink:0}
+.add-wd-btn{background:none;border:1px dashed var(--brd);color:var(--mut);border-radius:5px;padding:4px 10px;font-size:11px;width:100%;margin-top:4px;transition:all .2s}
+.add-wd-btn:hover{border-color:var(--pri);color:var(--pri)}
+.del-wd-btn{background:none;border:none;color:var(--dim);font-size:14px;padding:2px 5px;flex-shrink:0}.del-wd-btn:hover{color:var(--red)}
+.modal-foot{padding:14px 20px;border-top:1px solid var(--brd);display:flex;justify-content:flex-end;gap:8px}
+.disc{background:var(--card2);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--dim);margin-top:20px}
+.empty{text-align:center;padding:40px;color:var(--mut);font-size:13px}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--card);border:1px solid var(--grn);border-radius:8px;padding:10px 16px;font-size:13px;color:var(--grn);z-index:300;animation:fadeIn .2s ease}
+.toast-err{border-color:var(--red)!important;color:var(--red)!important}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.settings-sec{background:var(--card2);border:1px solid var(--brd);border-radius:10px;padding:16px;margin-bottom:16px}
+.settings-sec h3{font-size:12px;font-weight:700;color:var(--pri);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
+.info-box{background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--txt);line-height:1.6;margin-bottom:14px}
+.info-box strong{color:var(--blu)}
+.make-steps{counter-reset:s}
+.make-step{display:flex;gap:12px;margin-bottom:14px;align-items:flex-start}
+.sn{width:22px;height:22px;border-radius:50%;background:rgba(255,105,0,.15);border:1px solid rgba(255,105,0,.3);color:var(--pri);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+.sb2{flex:1}.sb2-t{font-size:13px;font-weight:600;color:#fff;margin-bottom:3px}.sb2-d{font-size:12px;color:var(--mut);line-height:1.5}
+.sb2-d code{background:rgba(255,105,0,.1);color:var(--pri);padding:1px 5px;border-radius:3px;font-size:11px}
+.code-box{background:#0a0a0d;border:1px solid var(--brd);border-radius:6px;padding:12px 14px;font-family:monospace;font-size:12px;color:#22c55e;margin:8px 0;overflow-x:auto}
+@media(max-width:640px){.hdr{padding:16px 18px}.main{padding:16px 18px 40px}.tabs{padding:0 18px}.form-row{grid-template-columns:1fr}.form-row.col3{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect}=React;
+const SK='aktienanalyse-canvas-v22';
+const CK='aktienanalyse-config-v22';
+const JSONBIN_ID='69b68c14aa77b81da9e78b7e';
+const JSONBIN_KEY='$2a$10$ehBtWQSMp.KI0cqlW569/OT9CjP9tSioF3M3edlZXSC1XiV3vI7Z2';
+
+const SEED=[
+  {id:'xiaomi',ticker:'1810.HK',name:'Xiaomi Corporation',exchange:'HKEX',sector:'Tech/Consumer',price:'HK$ 22.60',priceDate:'03.03.2026',w52:'11.94–35.90',scores:{gm:8,bg:7,qu:8,wa:9,bw:8,cf:8,ri:7,ta:9},rating:'KAUFEN',zielkurs:'HK$ 35–42',upside:'+55–87%',downside:'–15%',rr:'1:4',horizont:'2–4 J.',badges:['EV','AIoT','Smartphones'],chatUrl:'https://claude.ai/chat/e4c73bdc-63c3-4084-b41e-43ba145eb200',analyseUrl:'https://xiaomi829183333.netlify.app/',events:[{id:'e1',title:'FY2025 Jahresergebnisse',date:'Mitte März 2026',dateSort:'2026-03-15',priority:'high',desc:'Erstes vollständiges Jahresbild mit EV-Umsatzanteil.',wd:[{t:'up',text:'EV-Marge ≥15% → nachkaufen.'},{t:'down',text:'EV-Marge <8% → 30–50% reduzieren.'}]},{id:'e2',title:'SU7 Ultra Hochlauf',date:'Q2 2026',dateSort:'2026-05-01',priority:'med',desc:'SU7 Ultra Listenpreis RMB 529.900.',wd:[{t:'up',text:'Bestellwoche ≥15.000 → aufstocken.'},{t:'down',text:'<5.000 Bestellungen → trimmen.'}]},{id:'e3',title:'EMEA-Expansion & AIoT',date:'H2 2026',dateSort:'2026-07-01',priority:'blue',desc:'Int. Umsatzanteil ~42%; EMEA-ASP Ziel EUR 450–500.',wd:[{t:'up',text:'EMEA-ASP ≥EUR 380 → Zielkurs HK$ 42–50.'},{t:'down',text:'EMEA <10% Marktanteil → reduzieren.'}]}]},
+  {id:'now',ticker:'NOW',name:'ServiceNow',exchange:'NYSE',sector:'Enterprise SaaS',price:'~$103',priceDate:'27.02.2026',w52:'~$83–$220',scores:{gm:8,bg:8,qu:8,wa:8,bw:6,cf:8,ri:5,ta:3},rating:'KAUFEN',zielkurs:'$140–180',upside:'+70–100%',downside:'–20%',rr:'1:3.5–5',horizont:'2–3 J.',badges:['ITSM','AI/Agentic','Enterprise'],chatUrl:'https://claude.ai/chat/cf4c7f96-fba5-423d-913a-e306ac0752e8',analyseUrl:'http://servicenow-inc20260314184426.netlify.app',events:[{id:'e1',title:'Q1 2026 Earnings',date:'29. April 2026',dateSort:'2026-04-29',priority:'high',desc:'Konsens: EPS ~$0.80–0.92, Umsatz ~$3.65–3.74 Mrd.',wd:[{t:'up',text:'ACV ≥$750 Mio. + Renewal ≥98% → nachkaufen.'},{t:'down',text:'ACV <$650 Mio. → 50% reduzieren.'}]},{id:'e2',title:'Armis-Akquisition',date:'Mai–Jun. 2026',dateSort:'2026-05-15',priority:'med',desc:'Übernahme Armis ($7.75 Mrd.).',wd:[{t:'up',text:'Marge-Verwässerung ≤50 bps → aufstocken.'},{t:'down',text:'Margin-Impact >100 bps → 20–30% reduzieren.'}]},{id:'e3',title:'Financial Analyst Day',date:'2026 (TBD)',dateSort:'2026-09-01',priority:'blue',desc:'Erstmals mittelfristige Revenue- & Margin-Guidance.',wd:[{t:'up',text:'Guidance 20%+ Wachstum → aggressive Aufstockung.'},{t:'down',text:'<17% Wachstum → Zielkurs auf $120–140 senken.'}]}]},
+  {id:'team',ticker:'TEAM',name:'Atlassian Corporation',exchange:'NASDAQ',sector:'DevOps SaaS',price:'~$79',priceDate:'27.02.2026',w52:'~$68–$290',scores:{gm:8,bg:7,qu:8,wa:7,bw:9,cf:8,ri:5,ta:3},rating:'KAUFEN',zielkurs:'$140–200',upside:'+80–150%',downside:'–14%',rr:'1:6–11',horizont:'2–4 J.',badges:['DevOps','Rovo AI','PLG'],chatUrl:'https://claude.ai/chat/2593da9f-269e-492a-9f89-a08f3069a461',analyseUrl:'http://atlassian20260314184500.netlify.app',events:[{id:'e1',title:'Q3 FY2026 Earnings',date:'30. April 2026',dateSort:'2026-04-30',priority:'high',desc:'Guidance: Revenue $1.689–1.697 Mrd. (+21% YoY).',wd:[{t:'up',text:'RPO >44% + NRR >120% → aggressiv nachkaufen.'},{t:'down',text:'NRR <115% → Position halbieren.'}]},{id:'e2',title:'Rovo AI-Monetarisierung',date:'H2 2026',dateSort:'2026-08-01',priority:'blue',desc:'Rovo mit 5 Mio. MAU bisher kostenfrei.',wd:[{t:'up',text:'Monetisierungsstrategie → sofort nachkaufen.'},{t:'neutral',text:'Rovo bleibt kostenfrei → halten.'}]},{id:'e3',title:'FY2027-Guidance',date:'August 2026',dateSort:'2026-08-15',priority:'med',desc:'Data-Center wird FY2027 „meaningfully down" gehen.',wd:[{t:'up',text:'20%+ CAGR bestätigt → Vollposition aufbauen.'},{t:'down',text:'<15% Wachstum → 50% reduzieren.'}]}]}
+];
+
+const SL={gm:'Geschäftsmodell',bg:'Burggraben',qu:'Quartale',wa:'Wachstum',bw:'Bewertung',cf:'Cashflow',ri:'Risiken (inv.)',ta:'Technisch'};
+const PC={high:'#ef4444',med:'#f59e0b',blue:'#3b82f6',low:'#22c55e'};
+const RC={KAUFEN:'#22c55e',HALTEN:'#f59e0b',VERKAUFEN:'#ef4444'};
+const WI={up:'▲',down:'▼',neutral:'→'};
+const WC={up:'#22c55e',down:'#ef4444',neutral:'#f59e0b'};
+const BGC={KAUFEN:'badge pill-g',HALTEN:'badge pill-y',VERKAUFEN:'badge pill-r'};
+
+function avg(sc){return Math.round(Object.values(sc).reduce((a,b)=>a+b,0)/Object.values(sc).length*10)/10}
+function blankCo(){return{id:'co_'+Date.now(),ticker:'',name:'',exchange:'',sector:'',price:'',priceDate:'',w52:'',scores:{gm:5,bg:5,qu:5,wa:5,bw:5,cf:5,ri:5,ta:5},rating:'KAUFEN',zielkurs:'',upside:'',downside:'',rr:'',horizont:'',badges:[],chatUrl:'',analyseUrl:'',events:[{id:'e1',title:'',date:'',dateSort:'',priority:'high',desc:'',wd:[]},{id:'e2',title:'',date:'',dateSort:'',priority:'med',desc:'',wd:[]},{id:'e3',title:'',date:'',dateSort:'',priority:'blue',desc:'',wd:[]}]}}
+
+function ScoreBar({val}){return<div className="sb"><div className="sb-track"><div className="sb-fill" style={{width:Math.round(val*10)+'%'}}></div></div><span className="sb-num">{val}</span></div>}
+
+function PortfolioCard({co}){
+  const sc=avg(co.scores);const rc=RC[co.rating]||'#888';
+  return<div className="pcard">
+    <div className="pcard-hdr"><div><div className="pcard-name">{co.name}</div><div className="pcard-tick">{co.ticker} · {co.exchange} · {co.sector}</div></div><div><div className="pcard-price">{co.price}</div><div className="pcard-pm">{co.priceDate}</div></div></div>
+    <div className="pcard-body">
+      <div style={{fontSize:11,color:'var(--dim)',textTransform:'uppercase',letterSpacing:'.4px',marginBottom:4}}>Ø Score</div>
+      <ScoreBar val={sc}/>
+      <div className="pills">{Object.entries(co.scores).map(([k,v])=><span key={k} className={`pill ${v>=8?'pill-g':v>=6?'pill-y':'pill-r'}`}>{SL[k].split(' ')[0]} {v}</span>)}</div>
+      <div className="drow">
+        <div className="di"><span className="di-l">Rating</span><span className="di-v" style={{color:rc}}>{co.rating==='KAUFEN'?'✓ ':co.rating==='HALTEN'?'= ':'✗ '}{co.rating}</span></div>
+        <div className="di"><span className="di-l">Zielkurs</span><span className="di-v">{co.zielkurs}</span></div>
+        <div className="di"><span className="di-l">Upside</span><span className="di-v g">{co.upside}</span></div>
+        <div className="di"><span className="di-l">Downside</span><span className="di-v r">{co.downside}</span></div>
+        <div className="di"><span className="di-l">R/R</span><span className="di-v g">{co.rr}</span></div>
+        <div className="di"><span className="di-l">Horizont</span><span className="di-v">{co.horizont}</span></div>
+      </div>
+      {co.events.filter(e=>e.title).length>0&&<div className="evts"><div className="evt-t">Nächste Events</div>{co.events.filter(e=>e.title).map(e=><div key={e.id} className="evt-i"><div className="edot" style={{background:PC[e.priority]||'#888'}}></div><span>{e.date} – {e.title}</span></div>)}</div>}
+    </div>
+    <div className="pcard-foot">
+      <div className="badges">{co.badges.map((b,i)=><span key={i} className="badge pill-o">{b}</span>)}</div>
+      <div className="lnks">{co.analyseUrl&&<a href={co.analyseUrl} target="_blank" rel="noopener" className="lbtn lbtn-a">📄 Analyse</a>}{co.chatUrl&&<a href={co.chatUrl} target="_blank" rel="noopener" className="lbtn lbtn-c">💬 Chat</a>}</div>
+    </div>
+  </div>
+}
+
+function EventItem({ev,co}){
+  const pc=PC[ev.priority]||'#888';
+  const cls={high:'tl-item tl-h',med:'tl-item tl-m',blue:'tl-item tl-b',low:'tl-item tl-l'}[ev.priority]||'tl-item tl-b';
+  const bc=ev.priority==='high'?'239,68,68':ev.priority==='med'?'245,158,11':'59,130,246';
+  return<div className={cls}>
+    <div className="tl-dot-col"><div className="tl-dot" style={{background:pc}}></div></div>
+    <div className="tl-body">
+      <div className="tl-top"><div className="tl-title">{co.name} – {ev.title}</div><div className="tl-meta"><span className="tl-date">{ev.date}</span><span className="badge pill-o" style={{fontSize:10}}>{co.ticker}</span><span className="badge" style={{fontSize:10,background:`rgba(${bc},.12)`,color:pc,border:`1px solid rgba(${bc},.2)`}}>{ev.priority==='high'?'High':ev.priority==='med'?'Medium':'Strukturell'}</span></div></div>
+      {ev.desc&&<div className="tl-desc">{ev.desc}</div>}
+      {ev.wd.length>0&&<div className="tl-wd">{ev.wd.map((w,i)=><div key={i} className="wd-row"><span className="wd-ico" style={{color:WC[w.t]}}>{WI[w.t]}</span><span>{w.text}</span></div>)}</div>}
+      <div className="tl-lnks">{co.analyseUrl&&<a href={co.analyseUrl} target="_blank" rel="noopener" className="lbtn lbtn-a">📄</a>}{co.chatUrl&&<a href={co.chatUrl} target="_blank" rel="noopener" className="lbtn lbtn-c">💬</a>}</div>
+    </div>
+  </div>
+}
+
+function ModalForm({co,onSave,onClose}){
+  const [d,setD]=useState(()=>JSON.parse(JSON.stringify(co)));const [mt,setMt]=useState('info');
+  const setF=(f,v)=>setD(p=>({...p,[f]:v}));
+  const setScore=(k,v)=>setD(p=>({...p,scores:{...p.scores,[k]:Math.max(0,Math.min(10,parseFloat(v)||0))}}));
+  const setEvt=(i,f,v)=>setD(p=>{const ev=[...p.events];ev[i]={...ev[i],[f]:v};return{...p,events:ev}});
+  const addWd=(i)=>setD(p=>{const ev=[...p.events];ev[i]={...ev[i],wd:[...ev[i].wd,{t:'up',text:''}]};return{...p,events:ev}});
+  const setWd=(ei,wi,f,v)=>setD(p=>{const ev=[...p.events];const wd=[...ev[ei].wd];wd[wi]={...wd[wi],[f]:v};ev[ei]={...ev[ei],wd};return{...p,events:ev}});
+  const delWd=(ei,wi)=>setD(p=>{const ev=[...p.events];ev[ei]={...ev[ei],wd:ev[ei].wd.filter((_,j)=>j!==wi)};return{...p,events:ev}});
+  const sc=avg(d.scores);
+  const tabs=[{k:'info',l:'Basisinfo'},{k:'scores',l:'Scores'},{k:'invest',l:'Investment'},{k:'events',l:'Events'},{k:'links',l:'Links'}];
+  return<div className="overlay" onClick={e=>{if(e.target.className==='overlay')onClose()}}>
+    <div className="modal">
+      <div className="modal-hdr"><h2>{d.name||'Neue Analyse'}{d.ticker?<span style={{color:'var(--pri)'}}> ({d.ticker})</span>:''}</h2><button className="close-btn" onClick={onClose}>✕</button></div>
+      <div className="modal-tabs">{tabs.map(t=><button key={t.k} className={`mtab${mt===t.k?' active':''}`} onClick={()=>setMt(t.k)}>{t.l}</button>)}</div>
+      <div className="modal-body">
+        {mt==='info'&&<div>
+          <div className="form-row"><div className="fld"><label>Name</label><input value={d.name} onChange={e=>setF('name',e.target.value)}/></div><div className="fld"><label>Ticker</label><input value={d.ticker} onChange={e=>setF('ticker',e.target.value)}/></div></div>
+          <div className="form-row"><div className="fld"><label>Börse</label><input value={d.exchange} onChange={e=>setF('exchange',e.target.value)}/></div><div className="fld"><label>Sektor</label><input value={d.sector} onChange={e=>setF('sector',e.target.value)}/></div></div>
+          <div className="form-row col3"><div className="fld"><label>Kurs</label><input value={d.price} onChange={e=>setF('price',e.target.value)}/></div><div className="fld"><label>Stand</label><input value={d.priceDate} onChange={e=>setF('priceDate',e.target.value)}/></div><div className="fld"><label>52W</label><input value={d.w52} onChange={e=>setF('w52',e.target.value)}/></div></div>
+        </div>}
+        {mt==='scores'&&<div>
+          <div className="avg-score-box"><div className="lbl">Ø Gesamtscore</div><div className="big">{sc}/10</div></div>
+          {Object.entries(SL).map(([k,lbl])=><div key={k} className="score-row"><span className="score-lbl">{lbl}</span><input type="number" className="score-inp" min="0" max="10" step="0.5" value={d.scores[k]} onChange={e=>setScore(k,e.target.value)}/><div className="score-bar-wrap"><div className="score-bar-live" style={{width:(d.scores[k]*10)+'%'}}></div></div><span style={{fontSize:11,color:d.scores[k]>=8?'var(--grn)':d.scores[k]>=6?'var(--yel)':'var(--red)',minWidth:32,textAlign:'right'}}>{d.scores[k]}/10</span></div>)}
+        </div>}
+        {mt==='invest'&&<div>
+          <div className="fld"><label>Rating</label><select value={d.rating} onChange={e=>setF('rating',e.target.value)}><option value="KAUFEN">✓ KAUFEN</option><option value="HALTEN">= HALTEN</option><option value="VERKAUFEN">✗ VERKAUFEN</option></select></div>
+          <div className="form-row col3"><div className="fld"><label>Zielkurs</label><input value={d.zielkurs} onChange={e=>setF('zielkurs',e.target.value)}/></div><div className="fld"><label>Horizont</label><input value={d.horizont} onChange={e=>setF('horizont',e.target.value)}/></div><div className="fld"><label>Upside</label><input value={d.upside} onChange={e=>setF('upside',e.target.value)}/></div></div>
+          <div className="form-row"><div className="fld"><label>Downside</label><input value={d.downside} onChange={e=>setF('downside',e.target.value)}/></div><div className="fld"><label>Risk/Reward</label><input value={d.rr} onChange={e=>setF('rr',e.target.value)}/></div></div>
+        </div>}
+        {mt==='events'&&<div>{d.events.map((ev,i)=><div key={ev.id} className="evt-card">
+          <div className="evt-card-hdr">Event {i+1}</div>
+          <div className="form-row"><div className="fld"><label>Titel</label><input value={ev.title} onChange={e=>setEvt(i,'title',e.target.value)}/></div><div className="fld"><label>Datum</label><input value={ev.date} onChange={e=>setEvt(i,'date',e.target.value)}/></div></div>
+          <div className="form-row"><div className="fld"><label>Datum Sort</label><input value={ev.dateSort} onChange={e=>setEvt(i,'dateSort',e.target.value)} placeholder="JJJJ-MM-TT"/></div><div className="fld"><label>Priorität</label><select value={ev.priority} onChange={e=>setEvt(i,'priority',e.target.value)}><option value="high">🔴 High</option><option value="med">🟡 Medium</option><option value="blue">🔵 Strukturell</option><option value="low">🟢 Low</option></select></div></div>
+          <div className="fld"><label>Beschreibung</label><textarea rows="2" value={ev.desc} onChange={e=>setEvt(i,'desc',e.target.value)}/></div>
+          <div className="wd-form"><div className="wd-form-title">Wenn / Dann</div>
+            {ev.wd.map((w,wi)=><div key={wi} className="wd-form-row"><select className="wd-sel" value={w.t} onChange={e=>setWd(i,wi,'t',e.target.value)}><option value="up">▲ Bullisch</option><option value="down">▼ Bärisch</option><option value="neutral">→ Neutral</option></select><input style={{flex:1}} value={w.text} onChange={e=>setWd(i,wi,'text',e.target.value)} placeholder="Wenn X → dann Y..."/><button className="del-wd-btn" onClick={()=>delWd(i,wi)}>✕</button></div>)}
+            {ev.wd.length<4&&<button className="add-wd-btn" onClick={()=>addWd(i)}>+ Wenn/Dann</button>}
+          </div>
+        </div>)}</div>}
+        {mt==='links'&&<div>
+          <div className="fld"><label>Analyse URL</label><input value={d.analyseUrl} onChange={e=>setF('analyseUrl',e.target.value)}/></div>
+          <div className="fld"><label>Claude Chat URL</label><input value={d.chatUrl} onChange={e=>setF('chatUrl',e.target.value)}/></div>
+          <div className="fld"><label>Badges (kommagetrennt)</label><input value={d.badges.join(',')} onChange={e=>setF('badges',e.target.value.split(',').map(s=>s.trim()).filter(Boolean))}/></div>
+        </div>}
+      </div>
+      <div className="modal-foot"><button className="btn" onClick={onClose}>Abbrechen</button><button className="btn btn-grn" onClick={()=>onSave(d)}>✓ Speichern</button></div>
+    </div>
+  </div>
+}
+
+function OverviewTab({companies}){
+  const total=companies.length;
+  const avgSc=total?Math.round(companies.reduce((a,c)=>a+avg(c.scores),0)/total*10)/10:0;
+  const buys=companies.filter(c=>c.rating==='KAUFEN').length;
+  const allEvts=companies.flatMap(c=>c.events.filter(e=>e.title&&e.dateSort)).sort((a,b)=>a.dateSort>b.dateSort?1:-1);
+  const nextEvt=allEvts[0];const nextCo=nextEvt?companies.find(c=>c.events.some(e=>e.id===nextEvt.id)):null;
+  if(!total) return<div className="empty">Noch keine Analysen vorhanden. Neue Analyse in Claude erstellen — der Deploy-Button aktualisiert die Datenbank automatisch.</div>;
+  return<div>
+    <div className="kpi-grid">
+      <div className="kpi"><div className="kpi-l">Analysen</div><div className="kpi-v" style={{color:'var(--pri)'}}>{total}</div><div className="kpi-s">Canvas v2.2</div></div>
+      <div className="kpi"><div className="kpi-l">Ø Score</div><div className="kpi-v" style={{color:'var(--pri)'}}>{avgSc}/10</div></div>
+      <div className="kpi"><div className="kpi-l">Ratings</div><div className="kpi-v" style={{color:'var(--grn)'}}>{buys}× Kaufen</div><div className="kpi-s">{companies.filter(c=>c.rating==='HALTEN').length}× Halten · {companies.filter(c=>c.rating==='VERKAUFEN').length}× Verkaufen</div></div>
+      <div className="kpi"><div className="kpi-l">Nächster Event</div><div className="kpi-v" style={{color:'var(--blu)',fontSize:14}}>{nextEvt?nextEvt.date:'–'}</div><div className="kpi-s">{nextCo?nextCo.ticker:''}{nextEvt?' · '+nextEvt.title.slice(0,18)+'…':''}</div></div>
+      <div className="kpi"><div className="kpi-l">Technisch bullisch</div><div className="kpi-v" style={{color:'var(--yel)'}}>{companies.filter(c=>c.scores.ta>=7).length}×</div><div className="kpi-s">{companies.filter(c=>c.scores.ta<5).length}× bärisch</div></div>
+      <div className="kpi"><div className="kpi-l">Events</div><div className="kpi-v" style={{color:'var(--pri)'}}>{allEvts.length}</div><div className="kpi-s">Upcoming</div></div>
+    </div>
+    <div className="grid3">{companies.map(c=><PortfolioCard key={c.id} co={c}/>)}</div>
+    <div className="sec"><div className="sec-hdr">📋 Vergleichsübersicht</div><div className="tbl-wrap"><table>
+      <thead><tr><th>Unternehmen</th><th>Score</th><th>Rating</th><th>Kurs</th><th>Zielkurs</th><th>Upside</th><th>Downside</th><th>R/R</th><th>Horizont</th><th>Links</th></tr></thead>
+      <tbody>{companies.map(c=>{const sc=avg(c.scores);return<tr key={c.id}>
+        <td><strong>{c.name}</strong> <span style={{color:'var(--dim)',fontSize:11}}>{c.ticker}</span></td>
+        <td><span style={{color:'var(--pri)',fontWeight:700}}>{sc}</span></td>
+        <td><span className={BGC[c.rating]||'badge'} style={{fontSize:11}}>{c.rating}</span></td>
+        <td>{c.price}</td><td>{c.zielkurs}</td>
+        <td style={{color:'var(--grn)',fontWeight:600}}>{c.upside}</td>
+        <td style={{color:'var(--red)',fontWeight:600}}>{c.downside}</td>
+        <td style={{fontWeight:600}}>{c.rr}</td><td>{c.horizont}</td>
+        <td style={{whiteSpace:'nowrap'}}>
+          {c.analyseUrl&&<a href={c.analyseUrl} target="_blank" rel="noopener" className="lbtn lbtn-a" style={{fontSize:10,marginRight:3}}>📄</a>}
+          {c.chatUrl&&<a href={c.chatUrl} target="_blank" rel="noopener" className="lbtn lbtn-c" style={{fontSize:10}}>💬</a>}
+        </td>
+      </tr>})}</tbody>
+    </table></div></div>
+    <div className="disc">⚠️ Disclaimer: Diese Übersicht dient ausschließlich zu Informationszwecken. Keine Anlageberatung. Aktienanalyse Canvas v2.2 | Stand: März 2026.</div>
+  </div>
+}
+
+function EventsTab({companies}){
+  const [filter,setFilter]=useState('all');
+  const allEvts=companies.flatMap(c=>c.events.filter(e=>e.title&&e.dateSort).map(e=>({...e,coId:c.id}))).sort((a,b)=>a.dateSort>b.dateSort?1:-1);
+  const visible=filter==='all'?allEvts:allEvts.filter(e=>e.coId===filter);
+  const months=[...new Set(visible.map(e=>{const d=new Date(e.dateSort);return isNaN(d.getTime())?(e.dateSort||'TBD'):d.toLocaleDateString('de-DE',{month:'long',year:'numeric'})}))];
+  return<div>
+    <div className="chips"><span style={{fontSize:11,color:'var(--dim)',marginRight:4}}>Filter:</span>
+      <button className={`chip${filter==='all'?' active':''}`} onClick={()=>setFilter('all')}>Alle ({allEvts.length})</button>
+      {companies.map(c=><button key={c.id} className={`chip${filter===c.id?' active':''}`} onClick={()=>setFilter(c.id)}>{c.ticker} ({c.events.filter(e=>e.title&&e.dateSort).length})</button>)}
+    </div>
+    {visible.length===0?<div className="empty">Keine Events.</div>:months.map(g=>{
+      const items=visible.filter(e=>{const d=new Date(e.dateSort);return(isNaN(d.getTime())?(e.dateSort||'TBD'):d.toLocaleDateString('de-DE',{month:'long',year:'numeric'}))===g});
+      return items.length?<div key={g}><div className="tl-mon">📅 {g}</div>{items.map(e=>{const co=companies.find(c=>c.id===e.coId);return co?<EventItem key={e.id+co.id} ev={e} co={co}/>:null})}</div>:null
+    })}
+  </div>
+}
+
+function ManageTab({companies,onAdd,onEdit,onDelete,onReset,onSync,onPush,syncing}){
+  return<div>
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16,flexWrap:'wrap',gap:8}}>
+      <span style={{fontSize:13,color:'var(--mut)'}}>{companies.length} Analyse{companies.length!==1?'n':''} in der Datenbank</span>
+      <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+        <button className="btn" onClick={onReset} style={{fontSize:11}}>↺ Seed-Daten</button>
+        <button className="btn btn-blu" onClick={onSync} disabled={syncing}>{syncing?'⏳ Lade…':'⬇️ Von JSONBin laden'}</button>
+        <button className="btn btn-grn" onClick={onPush} disabled={syncing}>{syncing?'⏳ …':'⬆️ Lokale Daten → JSONBin'}</button>
+        <button className="btn btn-pri" onClick={onAdd}>+ Manuell</button>
+      </div>
+    </div>
+    {companies.length===0?<div className="empty">Keine Analysen.</div>:<div className="co-list">{companies.map(c=>{const sc=avg(c.scores);return<div key={c.id} className="co-row">
+      <div className="co-info">
+        <div style={{width:42,height:42,borderRadius:'50%',background:'rgba(255,105,0,.12)',border:'1px solid rgba(255,105,0,.2)',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:13,color:'var(--pri)',flexShrink:0}}>{sc}</div>
+        <div><div className="co-name">{c.name}</div><div style={{display:'flex',gap:6,flexWrap:'wrap',marginTop:2}}><span className="co-tick">{c.ticker} · {c.exchange}</span><span className={BGC[c.rating]||'badge'} style={{fontSize:10}}>{c.rating}</span></div></div>
+        <div style={{fontSize:12,color:'var(--mut)'}}>{c.zielkurs} · {c.upside}</div>
+      </div>
+      <div className="co-btns">
+        {c.analyseUrl&&<a href={c.analyseUrl} target="_blank" rel="noopener" className="lbtn lbtn-a" style={{fontSize:11}}>📄</a>}
+        {c.chatUrl&&<a href={c.chatUrl} target="_blank" rel="noopener" className="lbtn lbtn-c" style={{fontSize:11}}>💬</a>}
+        <button className="btn" onClick={()=>onEdit(c)}>✎</button>
+        <button className="btn btn-red" onClick={()=>onDelete(c.id)}>✕</button>
+      </div>
+    </div>})}</div>}
+  </div>
+}
+
+function MakeTab(){
+  return<div>
+    <div className="info-box">
+      <strong>Vollautomatischer Flow:</strong> Am Ende jeder Claude-Analyse erscheint ein Deploy-Button. Ein Klick sendet HTML + JSON an Make.com — Netlify und JSONBin werden automatisch aktualisiert.
+    </div>
+    <div className="settings-sec">
+      <h3>⚙️ Make.com Modul 4 (HTTP PUT JSONBin) — Body</h3>
+      <p style={{fontSize:12,color:'var(--mut)',marginBottom:10}}>Das Merging passiert im Deploy-Artifact (Browser-seitig). Make muss nur noch blind schreiben — kein toJSON, keine Formeln:</p>
+      <div className="code-box">{"{"}"companies": {"{{"}1.companies{"}}"}{"}"}}</div>
+      <p style={{fontSize:11,color:'var(--dim)',marginTop:6}}>1.companies = das bereits gemergerte Array aus dem Webhook-Payload</p>
+    </div>
+    <div className="settings-sec">
+      <h3>📋 Make.com Scenario — Kompletter Flow</h3>
+      <div className="make-steps">
+        {[
+          {t:'Modul 1 – Webhook',d:'Empfängt: {ticker, html, companies[]}. Bereits konfiguriert und getestet ✓'},
+          {t:'Modul 3 – Netlify Deploy',d:<>HTML-Quelle ändern auf: <code>{'{{1.html}}'}</code></>},
+          {t:'Modul 4 – HTTP PUT JSONBin',d:<>URL: <code>https://api.jsonbin.io/v3/b/69b68c14aa77b81da9e78b7e</code><br/>Method: PUT<br/>Header: <code>Content-Type: application/json</code> + <code>X-Master-Key: [key]</code><br/>Body: <code>{'{"companies": {{1.companies}}}'}</code></>},
+        ].map(({t,d},i)=><div key={i} className="make-step"><div className="sn">{i+1}</div><div className="sb2"><div className="sb2-t">{t}</div><div className="sb2-d">{d}</div></div></div>)}
+      </div>
+    </div>
+    <div className="settings-sec">
+      <h3>🔄 Workflow ab nächster Analyse</h3>
+      <div className="make-steps">
+        {['Claude erstellt Analyse → HTML + Deploy-Artifact erscheint automatisch','Auf 🚀 „Deployen & Portfolio updaten" klicken','Artifact fetcht JSONBin → merged neue Analyse → sendet an Make','Make → Netlify deployed HTML → JSONBin updated','Portfolio-App beim nächsten Öffnen: ⬇️ Von JSONBin laden → fertig'].map((s,i)=><div key={i} className="make-step"><div className="sn">{i+1}</div><div className="sb2"><div className="sb2-d">{s}</div></div></div>)}
+      </div>
+    </div>
+  </div>
+}
+
+function Toast({msg,err,onDone}){
+  useEffect(()=>{const t=setTimeout(onDone,2400);return()=>clearTimeout(t)},[]);
+  return<div className={`toast${err?' toast-err':''}`}>{err?'❌':'✓'} {msg}</div>
+}
+
+function App(){
+  const [cos,setCos]=useState([]);
+  const [loaded,setLoaded]=useState(false);
+  const [tab,setTab]=useState('overview');
+  const [modal,setModal]=useState(null);
+  const [toast,setToast]=useState(null);
+  const [syncing,setSyncing]=useState(false);
+  const [syncStatus,setSyncStatus]=useState('idle');
+
+  useEffect(()=>{
+    async function init(){
+      let data=[];
+      try{const r=localStorage.getItem(SK);data=r?JSON.parse(r):SEED;}catch{data=SEED}
+      // auto-sync from JSONBin on load
+      setSyncStatus('spin');
+      try{
+        const r=await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}/latest`,{headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':'false'}});
+        if(r.ok){const d=await r.json();if(d.companies&&d.companies.length>0){data=d.companies;}}
+        setSyncStatus('ok');
+      }catch{setSyncStatus('err')}
+      setCos(data);setLoaded(true);
+    }
+    init();
+  },[]);
+
+  useEffect(()=>{if(!loaded)return;try{localStorage.setItem(SK,JSON.stringify(cos))}catch(e){}},[cos,loaded]);
+
+  const save=(co)=>{setCos(p=>p.some(c=>c.id===co.id)?p.map(c=>c.id===co.id?co:c):[...p,co]);setModal(null);setToast({msg:co.name+' gespeichert'})};
+  const del=(id)=>{const co=cos.find(c=>c.id===id);if(confirm(`„${co?.name}" löschen?`)){setCos(p=>p.filter(c=>c.id!==id));setToast({msg:'Gelöscht'})}};
+  const reset=()=>{if(confirm('Auf Seed-Daten zurücksetzen?')){setCos(SEED);setToast({msg:'Zurückgesetzt'})}};
+  const syncFromJSONBin=async()=>{
+    setSyncing(true);
+    try{
+      const r=await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}/latest`,{headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':'false'}});
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const d=await r.json();
+      if(d.companies&&Array.isArray(d.companies)){setCos(d.companies);localStorage.setItem(SK,JSON.stringify(d.companies));setToast({msg:d.companies.length+' Analysen geladen ✓'});setSyncStatus('ok');}
+    }catch(e){setToast({msg:'Sync fehlgeschlagen: '+e.message,err:true});setSyncStatus('err')}
+    setSyncing(false);
+  };
+
+  const pushToJSONBin=async()=>{
+    setSyncing(true);
+    try{
+      const r=await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}`,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':JSONBIN_KEY},body:JSON.stringify({companies:cos,updatedAt:new Date().toISOString()})});
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      setToast({msg:cos.length+' Analysen nach JSONBin gepusht ✓'});setSyncStatus('ok');
+    }catch(e){setToast({msg:'Push fehlgeschlagen: '+e.message,err:true});setSyncStatus('err')}
+    setSyncing(false);
+  };
+  const avgSc=cos.length?Math.round(cos.reduce((a,c)=>a+avg(c.scores),0)/cos.length*10)/10:0;
+  const allEvts=cos.flatMap(c=>c.events.filter(e=>e.title)).length;
+
+  return<>
+    <div className="hdr">
+      <div>
+        <h1>Portfolio <span>Aktienanalysen</span></h1>
+        <div className="hdr-sub">
+          Aktienanalyse Canvas v2.2
+          <span className={`sync-dot ${syncStatus==='spin'?'spin':syncStatus==='ok'?'ok':'err'}`}></span>
+          <span style={{fontSize:11}}>{syncStatus==='spin'?'Sync…':syncStatus==='ok'?'JSONBin verbunden':'Offline – lokale Daten'}</span>
+        </div>
+      </div>
+      <div className="hdr-stats">
+        <div className="hs"><div className="hs-v">{cos.length}</div><div className="hs-l">Analysen</div></div>
+        <div className="hs"><div className="hs-v" style={{color:'var(--grn)'}}>{buys}×</div><div className="hs-l">Kaufen</div></div>
+        <div className="hs"><div className="hs-v">{avgSc}</div><div className="hs-l">Ø Score</div></div>
+        <div className="hs"><div className="hs-v">{allEvts}</div><div className="hs-l">Events</div></div>
+      </div>
+    </div>
+    <div className="tabs">
+      <button className={`tab${tab==='overview'?' active':''}`} onClick={()=>setTab('overview')}>📊 Übersicht</button>
+      <button className={`tab${tab==='events'?' active':''}`} onClick={()=>setTab('events')}>🗓️ Upcoming Events</button>
+      <button className={`tab${tab==='manage'?' active':''}`} onClick={()=>setTab('manage')}>⚙️ Verwalten</button>
+      <button className={`tab${tab==='make'?' active':''}`} onClick={()=>setTab('make')}>🔗 Make.com Setup</button>
+    </div>
+    <div className="main">
+      {tab==='overview'&&<OverviewTab companies={cos}/>}
+      {tab==='events'&&<EventsTab companies={cos}/>}
+      {tab==='manage'&&<ManageTab companies={cos} onAdd={()=>setModal(blankCo())} onEdit={c=>setModal(JSON.parse(JSON.stringify(c)))} onDelete={del} onReset={reset} onSync={syncFromJSONBin} onPush={pushToJSONBin} syncing={syncing}/>}
+      {tab==='make'&&<MakeTab/>}
+    </div>
+    {modal&&<ModalForm co={modal} onSave={save} onClose={()=>setModal(null)}/>}
+    {toast&&<Toast msg={toast.msg} err={toast.err} onDone={()=>setToast(null)}/>}
+  </>
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
