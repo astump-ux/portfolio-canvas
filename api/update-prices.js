@@ -13,8 +13,8 @@ const FINNHUB_MAP = {
 };
 
 const STOOQ_MAP = {
-  'MUV2':'muv2.de','SREN':'sren.sw','TEG':'teg.de','DHL':'dhl.de',
-  'WISE':'wise.l','ORSTED':'orsted.co',
+  'MUV2':'muv2.de','SREN':'sr9.de','TEG':'teg.de','DHL':'dhl.de',
+  'WISE':'wise.l','ORSTED':'d2g.de',
   'XIAOMI':'1810.hk','BYD':'1211.hk','HORIZON':'9660.hk','GEEKPLUS':'2030.hk',
 };
 
