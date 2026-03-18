@@ -673,13 +673,14 @@ function App(){
       <button className={`tab${tab==='overview'?' active':''}`} onClick={()=>setTab('overview')}>📊 Übersicht</button>
       <button className={`tab${tab==='events'?' active':''}`} onClick={()=>setTab('events')}>🗓️ Upcoming Events</button>
       <button className={`tab${tab==='manage'?' active':''}`} onClick={()=>setTab('manage')}>⚙️ Verwalten</button>
-<button className={`tab${tab==='make'?' active':''}`} onClick={()=>setTab('make')}>🔗 Make.com Setup</button>
+<button className={`tab${tab==='news'?' active':''}`} onClick={()=>setTab('news')}>📰 News Scan</button>
+      <button className={`tab${tab==='make'?' active':''}`} onClick={()=>setTab('make')}>🔗 Make.com Setup</button>
     </div>
     <div className="main">
       {tab==='overview'&&<OverviewTab companies={cos}/>}
       {tab==='events'&&<EventsTab companies={cos}/>}
       {tab==='manage'&&<ManageTab companies={cos} onAdd={()=>setModal(blankCo())} onEdit={c=>setModal(JSON.parse(JSON.stringify(c)))} onDelete={del} onReset={reset} onSync={syncFromJSONBin} onPush={pushToJSONBin} syncing={syncing}/>}
-      {tab==='news'&&React.createElement(NewsTab,{companies:cos})}
+      {tab==='news'&&<NewsTab companies={cos}/> }
       {tab==='make'&&<MakeTab/>}
     </div>
     {modal&&<ModalForm co={modal} onSave={save} onClose={()=>setModal(null)}/>}
