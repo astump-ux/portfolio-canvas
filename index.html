@@ -236,7 +236,7 @@ Antworte NUR mit validem JSON ohne Markdown:
 {"summary":"1-2 Satz Gesamteinschaetzung","newsItems":[{"headline":"...","relevanz":"hoch|mittel|niedrig","einschaetzung":"1 Satz"}],"eventChecks":[{"eventTitle":"...","ampel":"gruen|gelb|rot","verdict":"1-2 Saetze"}]}';
       const cr=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1500,messages:[{role:'user',content:prompt}]})});
       const cd=await cr.json();
-      const raw=(cd.content?.[0]?.text||'{}').replace(/```json|```/g,'').trim();
+      const raw=((cd.content&&cd.content[0]&&cd.content[0].text)||'{}').replace(/`{3}json|`{3}/g,'').trim();
       const parsed=JSON.parse(raw);
       setNewsState({news:top,analysis:parsed});
     }catch(e){setNewsState({news:[],analysis:{summary:'Fehler: '+e.message,newsItems:[],eventChecks:[]}});}
@@ -265,8 +265,8 @@ Antworte NUR mit validem JSON ohne Markdown:
       <div className="news-panel-hdr">📰 News & Event-Abgleich (7 Tage)</div>
       {newsState.analysis&&newsState.analysis.summary&&<div style={{fontSize:13,color:'var(--txt)',marginBottom:10,padding:'8px 10px',background:'rgba(255,105,0,.06)',borderRadius:6,borderLeft:'3px solid var(--pri)'}}>{newsState.analysis.summary}</div>}
       {((newsState.analysis&&newsState.analysis.newsItems)||[]).map((n,i)=><div key={i} className="news-item">
-        <div className="news-headline">{newsState.news[i]?.url?<a href={newsState.news[i].url} target="_blank" rel="noopener" style={{color:'inherit',textDecoration:'none'}}>{n.headline}</a>:n.headline}</div>
-        <div className="news-meta">{newsState.news[i]?.source} · {newsState.news[i]?.date} · <span style={{color:relColor(n.relevanz),fontWeight:600}}>{n.relevanz}</span></div>
+        <div className="news-headline">{(newsState.news[i]&&newsState.news[i].url)?<a href={newsState.news[i].url} target="_blank" rel="noopener" style={{color:'inherit',textDecoration:'none'}}>{n.headline}</a>:n.headline}</div>
+        <div className="news-meta">{newsState.news[i]&&newsState.news[i].source} · {newsState.news[i]&&newsState.news[i].date} · <span style={{color:relColor(n.relevanz),fontWeight:600}}>{n.relevanz}</span></div>
         <div className="news-relevance">{n.einschaetzung}</div>
       </div>)}
       {((newsState.analysis&&newsState.analysis.eventChecks)||[]).length>0&&<div className="event-check">
