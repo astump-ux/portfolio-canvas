@@ -13,9 +13,20 @@ const FINNHUB_MAP = {
 };
 
 const STOOQ_MAP = {
+  // International
   'MUV2':'muv2.de','SREN':'sr9.de','TEG':'teg.de','DHL':'dhl.de',
   'WISE':'wise.uk','ORSTED':'d2g.de',
   'XIAOMI':'1810.hk','BYD':'1211.hk','HORIZON':'9660.hk','GEEKPLUS':'2590.hk',
+};
+
+// US tickers on Stooq for 1M perf (Stooq uses .us suffix)
+const STOOQ_US_MAP = {
+  'DDOG':'ddog.us','TEAM':'team.us','WDAY':'wday.us','NOW':'now.us','CRM':'crm.us',
+  'HUBS':'hubs.us','SNOW':'snow.us','PANW':'panw.us','GOOGL':'googl.us','OKTA':'okta.us',
+  'AMZN':'amzn.us','META':'meta.us','MSFT':'msft.us','FSLR':'fslr.us','FLNC':'flnc.us',
+  'NFLX':'nflx.us','MDT':'mdt.us','ISRG':'isrg.us','MU':'mu.us','NU':'nu.us',
+  'TSMC':'tsm.us','UBER':'uber.us','TEM':'tem.us','UPWK':'upwk.us','VEEV':'veev.us',
+  'DT':'dt.us','BABA':'baba.us','TCEHY':'tcehy.us',
 };
 
 function sleep(ms) { return new Promise(function(r){ setTimeout(r, ms); }); }
@@ -117,6 +128,22 @@ module.exports = async function handler(req, res) {
         dataMap[item.ticker] = { ticker: item.ticker, currentPrice: null, perf7d: null };
       }
       if (j < intlTickers.length - 1) await sleep(300);
+    }
+
+    // 2c. Stooq for US tickers perf1m (sequential, 300ms pause)
+    var usPerf1mTickers = companies
+      .map(function(c){ return { ticker: c.ticker, sym: STOOQ_US_MAP[c.ticker] }; })
+      .filter(function(x){ return x.sym; });
+
+    for (var k = 0; k < usPerf1mTickers.length; k++) {
+      var usItem = usPerf1mTickers[k];
+      try {
+        var usData = await fetchStooq(usItem.sym);
+        if (dataMap[usItem.ticker]) {
+          dataMap[usItem.ticker].perf1m = usData ? usData.perf1m : null;
+        }
+      } catch(e) {}
+      if (k < usPerf1mTickers.length - 1) await sleep(300);
     }
 
     // 3. Update companies
