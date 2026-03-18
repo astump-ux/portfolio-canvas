@@ -535,12 +535,12 @@ function NewsTab(props){
     }).join('\n');
     var prompt = 'Du bist ein Aktienanalyst. Welche Aktien haben in den letzten 7 Tagen relevante News die ihre anstehenden Investment-Events betreffen?\n\nDaten:\n' + ctx + '\n\nGib nur TOP 5-8 relevanteste Aktien zurueck. Antworte NUR mit JSON-Array (kein Markdown): [{"ticker":"...","ampel":"gruen","headline":"News in 1 Satz","eventMatch":"Verbindung zum Event in 1-2 Saetzen"}]';
     try{
-      var cr = await fetch('https://api.anthropic.com/v1/messages',{
+      var cr = await fetch('/api/news-scan',{
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1200,messages:[{role:'user',content:prompt}]})
+        body: JSON.stringify({prompt: prompt})
       });
       var cd = await cr.json();
-      var raw = (cd.content && cd.content[0] && cd.content[0].text) || '[]';
+      var raw = cd.text || '[]';
       var clean = raw.replace(/```json/g,'').replace(/```/g,'').trim();
       setResults(JSON.parse(clean));
       setStatus('done');
