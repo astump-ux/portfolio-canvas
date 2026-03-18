@@ -1,4 +1,4 @@
-// /api/update-prices.js - Finnhub, CommonJS compatible
+// /api/update-prices.js - Finnhub v5, perf7d via 52w/metric fallback
 
 const JSONBIN_ID = '69b68c14aa77b81da9e78b7e';
 const JSONBIN_KEY = '$2a$10$ehBtWQSMp.KI0cqlW569/OT9CjP9tSioF3M3edlZXSC1XiV3vI7Z2';
@@ -32,23 +32,28 @@ module.exports = async function handler(req, res) {
     if (!Array.isArray(companies)) companies = Object.values(companies || {});
     if (!companies.length) return res.status(200).json({ message: 'No companies found' });
 
-    // 2. Fetch quotes + candles for all tickers in parallel
+    // 2. Fetch quotes for all mapped tickers
     const tickers = companies
       .map(c => ({ ticker: c.ticker, sym: FINNHUB_MAP[c.ticker] }))
       .filter(x => x.sym);
 
     const fetched = await Promise.all(tickers.map(async ({ ticker, sym }) => {
       try {
-        const to = Math.floor(Date.now() / 1000);
-        const from = to - (9 * 24 * 60 * 60);
-        const [qRes, cRes] = await Promise.all([
-          fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(sym)}&token=${FINNHUB_KEY}`),
-          fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${encodeURIComponent(sym)}&resolution=D&from=${from}&to=${to}&token=${FINNHUB_KEY}`)
-        ]);
-        const [quote, candles] = await Promise.all([qRes.json(), cRes.json()]);
-        return { ticker, quote, candles };
+        // Quote: c=current, pc=prev close, dp=daily change%
+        const qRes = await fetch(
+          `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(sym)}&token=${FINNHUB_KEY}`
+        );
+        const quote = await qRes.json();
+
+        // Basic metrics for 7d/weekly perf (free tier has weekly price change)
+        const mRes = await fetch(
+          `https://finnhub.io/api/v1/stock/metric?symbol=${encodeURIComponent(sym)}&metric=all&token=${FINNHUB_KEY}`
+        );
+        const metrics = await mRes.json();
+
+        return { ticker, quote, metrics };
       } catch(e) {
-        return { ticker, quote: null, candles: null };
+        return { ticker, quote: null, metrics: null };
       }
     }));
 
@@ -59,21 +64,30 @@ module.exports = async function handler(req, res) {
     let updated = 0;
     const updatedCompanies = companies.map(c => {
       const d = dataMap[c.ticker];
-      if (!d?.quote) return c;
-      const currentPrice = d.quote.c || null;
+      if (!d?.quote?.c) return c;
+
+      const currentPrice = d.quote.c;
+
+      // Try to get 7d perf from metrics
+      // Finnhub provides: metric.series.annual/quarterly or basic metrics
+      // '5DayPriceReturnDaily' is available in basic metrics
       let perf7d = null;
-      if (d.candles?.c?.length >= 2) {
-        const closes = d.candles.c.filter(x => x != null);
-        if (closes.length >= 2) {
-          const latest = closes[closes.length - 1];
-          const oldest = closes[0];
-          if (oldest) perf7d = Math.round(((latest - oldest) / oldest) * 1000) / 10;
+      const m = d.metrics?.metric;
+      if (m) {
+        // Try 5-day return first (closest to 7d)
+        if (m['5DayPriceReturnDaily'] != null) {
+          perf7d = Math.round(m['5DayPriceReturnDaily'] * 10) / 10;
+        }
+        // Fallback: weekly return
+        else if (m['weekPriceReturnDaily'] != null) {
+          perf7d = Math.round(m['weekPriceReturnDaily'] * 10) / 10;
         }
       }
-      if (currentPrice) updated++;
+
+      updated++;
       return {
         ...c,
-        currentPrice: currentPrice ? String(Math.round(currentPrice * 100) / 100) : (c.currentPrice || c.price),
+        currentPrice: String(Math.round(currentPrice * 100) / 100),
         perf7d,
         priceUpdatedAt: new Date().toISOString(),
       };
@@ -96,6 +110,8 @@ module.exports = async function handler(req, res) {
         currentPrice: c.currentPrice,
         perf7d: c.perf7d,
       })),
+      // Debug: show what metrics keys are available
+      metricKeys: Object.keys(dataMap['AAPL']?.metrics?.metric || dataMap['DDOG']?.metrics?.metric || {}).slice(0, 10),
     });
 
   } catch (error) {
