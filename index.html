@@ -498,103 +498,88 @@ function Toast({msg,err,onDone}){
 function NewsTab(props){
   var companies = props.companies;
   var useState = React.useState;
-  var st = useState('idle');
-  var status = st[0]; var setStatus = st[1];
-  var rs = useState([]); var results = rs[0]; var setResults = rs[1];
-  var pg = useState(''); var progress = pg[0]; var setProgress = pg[1];
-  var FKEY = 'd6tcsopr01qhkb43ln0gd6tcsopr01qhkb43ln10';
-  var US = ['DDOG','TEAM','WDAY','NOW','CRM','HUBS','SNOW','PANW','GOOGL','OKTA','AMZN','META','MSFT','FSLR','FLNC','NFLX','MDT','ISRG','MU','NU','TSMC','UBER','TEM','UPWK','VEEV','DT','BABA','TCEHY'];
+  var useEffect = React.useEffect;
+  var st = useState('loading'); var status = st[0]; var setStatus = st[1];
+  var cs = useState([]); var cache = cs[0]; var setCache = cs[1];
+  var ts = useState(''); var timestamp = ts[0]; var setTimestamp = ts[1];
+  var JSONBIN_ID = '69b68c14aa77b81da9e78b7e';
+  var JSONBIN_KEY = '$2a$10$ehBtWQSMp.KI0cqlW569/OT9CjP9tSioF3M3edlZXSC1XiV3vI7Z2';
+
+  useEffect(function(){ loadCache(); }, []);
+
+  async function loadCache(){
+    setStatus('loading');
+    try{
+      var r = await fetch('https://api.jsonbin.io/v3/b/'+JSONBIN_ID+'/latest',{headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':'false'}});
+      var d = await r.json();
+      var nc = (d && d.newsCache) || [];
+      setCache(nc);
+      setTimestamp((d && d.newsCacheUpdatedAt) || '');
+      setStatus(nc.length > 0 ? 'done' : 'empty');
+    }catch(e){ setStatus('error'); }
+  }
 
   function ampelIcon(a){ return a==='gruen' ? '🟢' : a==='gelb' ? '🟡' : '🔴'; }
   function ampelLabel(a){ return a==='gruen' ? 'Positiv' : a==='gelb' ? 'Neutral' : 'Risiko'; }
   function ampelColor(a){ return a==='gruen' ? 'var(--grn)' : a==='gelb' ? 'var(--yel)' : 'var(--red)'; }
 
-  async function runScan(){
-    setStatus('loading');
-    setResults([]);
-    var now = Math.floor(Date.now()/1000);
-    var d1 = new Date((now-7*24*60*60)*1000).toISOString().slice(0,10);
-    var d2 = new Date(now*1000).toISOString().slice(0,10);
-    var scanCos = companies.filter(function(co){ return US.indexOf(co.ticker) !== -1; });
-    var newsMap = {};
-    setProgress('News fuer ' + scanCos.length + ' Aktien laden...');
-    await Promise.all(scanCos.map(async function(co){
-      try{
-        var sym = co.ticker === 'TSMC' ? 'TSM' : co.ticker;
-        var r = await fetch('https://finnhub.io/api/v1/company-news?symbol='+sym+'&from='+d1+'&to='+d2+'&token='+FKEY);
-        var news = await r.json();
-        newsMap[co.ticker] = (Array.isArray(news) ? news : []).slice(0,5);
-      }catch(e){ newsMap[co.ticker] = []; }
-    }));
-    var withNews = scanCos.filter(function(co){ return newsMap[co.ticker] && newsMap[co.ticker].length > 0; });
-    setProgress('Claude analysiert ' + withNews.length + ' Aktien mit News...');
-    var ctx = withNews.map(function(co){
-      var evCtx = co.events.filter(function(e){ return e.title; }).map(function(e){ return e.title + ' (' + e.date + ')'; }).join(', ');
-      var nCtx = newsMap[co.ticker].map(function(n){ return n.headline; }).join(' | ');
-      return co.ticker + ' - Events: ' + evCtx + ' - News: ' + nCtx;
-    }).join('\n');
-    var prompt = 'Du bist ein Aktienanalyst. Welche Aktien haben in den letzten 7 Tagen relevante News die ihre anstehenden Investment-Events betreffen?\n\nDaten:\n' + ctx + '\n\nGib nur TOP 5-8 relevanteste Aktien zurueck. Antworte NUR mit JSON-Array (kein Markdown): [{"ticker":"...","ampel":"gruen","headline":"News in 1 Satz","eventMatch":"Verbindung zum Event in 1-2 Saetzen"}]';
-    try{
-      var cr = await fetch('/api/news-scan',{
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({prompt: prompt})
-      });
-      var cd = await cr.json();
-      var raw = cd.text || '[]';
-      var clean = raw.replace(/```json/g,'').replace(/```/g,'').trim();
-      setResults(JSON.parse(clean));
-      setStatus('done');
-      setProgress('');
-    }catch(e){ setStatus('error'); setProgress('Fehler: '+e.message); }
-  }
+  var headerEl = React.createElement('div',{className:'sec',style:{marginBottom:20}},
+    React.createElement('div',{className:'sec-hdr'},'News Scan - Alle Aktien (letzte 7 Tage)'),
+    React.createElement('div',{style:{padding:'16px 18px'}},
+      React.createElement('p',{style:{fontSize:13,color:'var(--mut)',marginBottom:8}},
+        'Claude Web-Recherche fuer alle Portfolio-Aktien. Update direkt im Claude Chat anstossen.'),
+      timestamp ? React.createElement('div',{style:{fontSize:11,color:'var(--dim)'}},
+        'Letztes Update: '+new Date(timestamp).toLocaleString('de-DE')) : null,
+      React.createElement('button',{className:'btn',style:{marginTop:10},onClick:loadCache},'Aktualisieren')
+    )
+  );
 
-  var scanBtn = React.createElement('button',{className:'btn btn-pri',onClick:runScan},'News Scan starten');
-  var loadingEl = React.createElement('div',{style:{display:'flex',alignItems:'center',gap:10,fontSize:13,color:'var(--mut)'}},
-    React.createElement('span',{style:{display:'inline-block',animation:'spin .8s linear infinite'}},'⟳'), progress);
-  var errorEl = React.createElement('div',null,
-    React.createElement('div',{style:{color:'var(--red)',fontSize:13,marginBottom:10}},progress),
-    React.createElement('button',{className:'btn',onClick:runScan},'Erneut versuchen'));
-  var rescanBtn = React.createElement('button',{className:'btn',onClick:runScan,style:{marginBottom:16}},'Erneut scannen');
+  if(status==='loading') return React.createElement('div',null, headerEl,
+    React.createElement('div',{style:{color:'var(--mut)',fontSize:13,padding:'20px 0',display:'flex',gap:8,alignItems:'center'}},
+      React.createElement('span',{style:{display:'inline-block',animation:'spin .8s linear infinite'}},'⟳'),' Lade News-Cache...')
+  );
 
-  var resultItems = results.map(function(r,i){
+  if(status==='empty') return React.createElement('div',null, headerEl,
+    React.createElement('div',{className:'empty'},'Noch kein News-Scan vorhanden. Bitte im Claude Chat einen News-Scan anstossen.')
+  );
+
+  if(status==='error') return React.createElement('div',null, headerEl,
+    React.createElement('div',{style:{color:'var(--red)',fontSize:13}},'Fehler beim Laden.')
+  );
+
+  var items = cache.map(function(r,i){
     var co = companies.find(function(c){ return c.ticker === r.ticker; });
-    var links = React.createElement('div',{style:{display:'flex',gap:6}},
-      co && co.analyseUrl ? React.createElement('a',{href:co.analyseUrl,target:'_blank',rel:'noopener',className:'lbtn lbtn-a',style:{fontSize:10}},'Analyse') : null,
-      co && co.chatUrl ? React.createElement('a',{href:co.chatUrl,target:'_blank',rel:'noopener',className:'lbtn lbtn-c',style:{fontSize:10}},'Chat') : null
-    );
     return React.createElement('div',{key:i,className:'sec',style:{marginBottom:12}},
-      React.createElement('div',{style:{padding:'12px 16px',display:'flex',gap:12,alignItems:'flex-start'}},
-        React.createElement('div',{style:{fontSize:18,flexShrink:0,marginTop:1}},ampelIcon(r.ampel)),
+      React.createElement('div',{style:{padding:'14px 16px',display:'flex',gap:12,alignItems:'flex-start'}},
+        React.createElement('div',{style:{fontSize:18,flexShrink:0,marginTop:2}},ampelIcon(r.ampel)),
         React.createElement('div',{style:{flex:1}},
-          React.createElement('div',{style:{display:'flex',gap:8,alignItems:'center',marginBottom:4,flexWrap:'wrap'}},
+          React.createElement('div',{style:{display:'flex',gap:8,alignItems:'center',marginBottom:5,flexWrap:'wrap'}},
             React.createElement('span',{style:{fontSize:15,fontWeight:700,color:'#fff'}},r.ticker),
-            co ? React.createElement('span',{style:{fontSize:11,color:'var(--pri)'}},co.name) : null,
+            co ? React.createElement('span',{style:{fontSize:11,color:'var(--pri)'}},'- '+co.name) : null,
             React.createElement('span',{style:{fontSize:11,fontWeight:600,color:ampelColor(r.ampel)}},ampelLabel(r.ampel))
           ),
-          React.createElement('div',{style:{fontSize:13,color:'var(--txt)',fontWeight:600,marginBottom:4}},r.headline),
-          React.createElement('div',{style:{fontSize:12,color:'var(--mut)',lineHeight:1.5,marginBottom:8}},r.eventMatch),
-          links
+          React.createElement('div',{style:{fontSize:13,fontWeight:600,color:'var(--txt)',marginBottom:5}},r.headline),
+          React.createElement('div',{style:{fontSize:12,color:'var(--mut)',lineHeight:1.6,marginBottom:6}},r.eventMatch),
+          r.news && r.news.length > 0 ? React.createElement('div',{style:{marginTop:6}},
+            r.news.map(function(n,j){
+              return React.createElement('div',{key:j,style:{fontSize:11,color:'var(--dim)',padding:'3px 0',borderTop:'1px solid rgba(46,46,56,.3)'}},
+                n.url ? React.createElement('a',{href:n.url,target:'_blank',rel:'noopener',style:{color:'var(--dim)',textDecoration:'none'}},n.title) : n.title
+              );
+            })
+          ) : null,
+          React.createElement('div',{style:{display:'flex',gap:6,marginTop:8}},
+            co && co.analyseUrl ? React.createElement('a',{href:co.analyseUrl,target:'_blank',rel:'noopener',className:'lbtn lbtn-a',style:{fontSize:10}},'Analyse') : null,
+            co && co.chatUrl ? React.createElement('a',{href:co.chatUrl,target:'_blank',rel:'noopener',className:'lbtn lbtn-c',style:{fontSize:10}},'Chat') : null
+          )
         )
       )
     );
   });
 
-  return React.createElement('div',null,
-    React.createElement('div',{className:'sec',style:{marginBottom:20}},
-      React.createElement('div',{className:'sec-hdr'},'News Scan - Alle Aktien (letzte 7 Tage)'),
-      React.createElement('div',{style:{padding:'16px 18px'}},
-        React.createElement('p',{style:{fontSize:13,color:'var(--mut)',marginBottom:14}},'Scannt alle US-Aktien auf aktuelle News und hebt hervor wo News mit anstehenden Events zusammenpassen.'),
-        status==='idle' ? scanBtn : null,
-        status==='loading' ? loadingEl : null,
-        status==='error' ? errorEl : null,
-        status==='done' ? rescanBtn : null
-      )
-    ),
-    status==='done' && results.length===0 ? React.createElement('div',{className:'empty'},'Keine relevanten News-Event-Verbindungen gefunden.') : null,
-    status==='done' && results.length>0 ? React.createElement('div',null,
-      React.createElement('div',{style:{fontSize:12,color:'var(--mut)',marginBottom:12}},results.length+' Aktien mit relevanten News:'),
-      resultItems
-    ) : null
+  return React.createElement('div',null, headerEl,
+    React.createElement('div',{style:{fontSize:12,color:'var(--mut)',marginBottom:12}},
+      cache.length+' Aktien mit relevanten News:'),
+    React.createElement('div',null, items)
   );
 }
 
