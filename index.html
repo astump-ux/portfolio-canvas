@@ -299,7 +299,7 @@ function OverviewTab({companies}){
     else if(sort.col==='rating'){av={KAUFEN:0,HALTEN:1,VERKAUFEN:2}[a.rating]??3;bv={KAUFEN:0,HALTEN:1,VERKAUFEN:2}[b.rating]??3;}
     else if(sort.col==='upside'){av=parseFloat((a.upside||'').replace(/[^0-9.-]/g,''))||0;bv=parseFloat((b.upside||'').replace(/[^0-9.-]/g,''))||0;}
     else if(sort.col==='downside'){av=parseFloat((a.downside||'').replace(/[^0-9.-]/g,''))||0;bv=parseFloat((b.downside||'').replace(/[^0-9.-]/g,''))||0;}
-    else if(sort.col==='perf7d'||sort.col==='perf1m'){av=a[sort.col]??null;bv=b[sort.col]??null;if(av===null&&bv===null)return 0;if(av===null)return 1;if(bv===null)return -1;}
+    else if(sort.col==='perf7d'||sort.col==='perf1m'||sort.col==='perfAnalysis'){av=a[sort.col]??null;bv=b[sort.col]??null;if(av===null&&bv===null)return 0;if(av===null)return 1;if(bv===null)return -1;}
     else{av=a[sort.col]||'';bv=b[sort.col]||'';}
     if(typeof av==='string') return sort.dir==='asc'?av.localeCompare(bv):bv.localeCompare(av);
     return sort.dir==='asc'?av-bv:bv-av;
@@ -323,7 +323,8 @@ function OverviewTab({companies}){
           <SortTh label="Ø Score" col="score" sort={sort} setSort={setSort}/>
           <SortTh label="Rating" col="rating" sort={sort} setSort={setSort}/>
           <SortTh label="Technisch" col="ta" sort={sort} setSort={setSort}/>
-          <th>Kurs</th>
+          <th>Analyse</th>
+          <SortTh label="Perf. seit Analyse" col="perfAnalysis" sort={sort} setSort={setSort}/>
           <SortTh label="Upside" col="upside" sort={sort} setSort={setSort}/>
           <SortTh label="Downside" col="downside" sort={sort} setSort={setSort}/>
           <SortTh label="7T Perf." col="perf7d" sort={sort} setSort={setSort}/>
@@ -341,7 +342,14 @@ function OverviewTab({companies}){
             <td><span style={{color:'var(--pri)',fontWeight:700}}>{sc}</span></td>
             <td><span className={BGC[c.rating]||'badge'} style={{fontSize:11}}>{c.rating}</span></td>
             <td><span style={{color:taColor,fontWeight:700}}>{ta}/10</span></td>
-            <td style={{fontSize:12}}>{c.currentPrice||c.price}</td>
+            <td style={{fontSize:11,color:'var(--mut)'}}>{c.priceDate||'–'}</td>
+            <td>{(()=>{
+              const ap=parseFloat((c.price||'').replace(/[^0-9.-]/g,''));
+              const cp=parseFloat((c.currentPrice||'').replace(/[^0-9.-]/g,''));
+              if(!ap||!cp) return <span style={{color:'var(--dim)',fontSize:10}}>–</span>;
+              const pa=Math.round(((cp-ap)/ap)*1000)/10;
+              return <span style={{fontWeight:600,fontSize:12,color:pa>=0?'var(--grn)':'var(--red)'}}>{pa>=0?'+':''}{pa.toFixed(1)}%</span>;
+            })()}</td>
             <td style={{color:'var(--grn)',fontWeight:600,fontSize:12}}>{c.upside}</td>
             <td style={{color:'var(--red)',fontWeight:600,fontSize:12}}>{c.downside}</td>
             <td style={{fontWeight:600,fontSize:12,color:perf===null?'var(--dim)':perf>=0?'var(--grn)':'var(--red)'}}>
