@@ -1,4 +1,4 @@
-// /api/update-prices.js - Finnhub (US) + Stooq (International)
+// /api/update-prices.js - Finnhub (US) + Stooq (International) - batched
 
 const JSONBIN_ID = '69b68c14aa77b81da9e78b7e';
 const JSONBIN_KEY = '$2a$10$ehBtWQSMp.KI0cqlW569/OT9CjP9tSioF3M3edlZXSC1XiV3vI7Z2';
@@ -18,15 +18,32 @@ const STOOQ_MAP = {
   'XIAOMI':'1810.hk','BYD':'1211.hk','HORIZON':'9660.hk','GEEKPLUS':'2590.hk',
 };
 
+function sleep(ms) { return new Promise(function(r){ setTimeout(r, ms); }); }
+
+async function fetchFinnhub(sym, key) {
+  var qRes = await fetch('https://finnhub.io/api/v1/quote?symbol=' + encodeURIComponent(sym) + '&token=' + key);
+  var mRes = await fetch('https://finnhub.io/api/v1/stock/metric?symbol=' + encodeURIComponent(sym) + '&metric=all&token=' + key);
+  var quote = await qRes.json();
+  var metrics = await mRes.json();
+  var currentPrice = quote && quote.c ? String(Math.round(quote.c * 100) / 100) : null;
+  var m = (metrics && metrics.metric) || {};
+  var perf7d = m['5DayPriceReturnDaily'] != null
+    ? Math.round(m['5DayPriceReturnDaily'] * 10) / 10
+    : m['weekPriceReturnDaily'] != null
+      ? Math.round(m['weekPriceReturnDaily'] * 10) / 10
+      : null;
+  return { currentPrice: currentPrice, perf7d: perf7d };
+}
+
 async function fetchStooq(symbol) {
-  const now = new Date();
-  const d2 = now.toISOString().slice(0,10).replace(/-/g,'');
-  const past = new Date(now.getTime() - 12 * 24 * 60 * 60 * 1000);
-  const d1 = past.toISOString().slice(0,10).replace(/-/g,'');
-  const url = 'https://stooq.com/q/d/l/?s=' + symbol + '&d1=' + d1 + '&d2=' + d2 + '&i=d';
-  const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-  const csv = await res.text();
-  const lines = csv.trim().split('\n').filter(function(l){ return l && !l.startsWith('Date') && l.indexOf(',') !== -1; });
+  var now = new Date();
+  var d2 = now.toISOString().slice(0,10).replace(/-/g,'');
+  var past = new Date(now.getTime() - 12 * 24 * 60 * 60 * 1000);
+  var d1 = past.toISOString().slice(0,10).replace(/-/g,'');
+  var url = 'https://stooq.com/q/d/l/?s=' + symbol + '&d1=' + d1 + '&d2=' + d2 + '&i=d';
+  var res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+  var csv = await res.text();
+  var lines = csv.trim().split('\n').filter(function(l){ return l && !l.startsWith('Date') && l.indexOf(',') !== -1; });
   if (lines.length < 2) return null;
   var entries = lines.map(function(line){
     var cols = line.split(',');
@@ -43,7 +60,6 @@ async function fetchStooq(symbol) {
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-
   var FINNHUB_KEY = process.env.FINNHUB_KEY;
   if (!FINNHUB_KEY) return res.status(500).json({ error: 'FINNHUB_KEY not set' });
 
@@ -58,48 +74,45 @@ module.exports = async function handler(req, res) {
     if (!Array.isArray(companies)) companies = Object.values(companies || {});
     if (!companies.length) return res.status(200).json({ message: 'No companies found' });
 
-    // 2a. Finnhub for US tickers
+    var dataMap = {};
+
+    // 2a. Finnhub in batches of 10 with 1s pause between batches
     var usTickers = companies
       .map(function(c){ return { ticker: c.ticker, sym: FINNHUB_MAP[c.ticker] }; })
       .filter(function(x){ return x.sym; });
 
-    var finnhubResults = await Promise.all(usTickers.map(async function(item) {
-      try {
-        var qRes = await fetch('https://finnhub.io/api/v1/quote?symbol=' + encodeURIComponent(item.sym) + '&token=' + FINNHUB_KEY);
-        var mRes = await fetch('https://finnhub.io/api/v1/stock/metric?symbol=' + encodeURIComponent(item.sym) + '&metric=all&token=' + FINNHUB_KEY);
-        var quote = await qRes.json();
-        var metrics = await mRes.json();
-        var currentPrice = quote && quote.c ? String(Math.round(quote.c * 100) / 100) : null;
-        var m = (metrics && metrics.metric) || {};
-        var perf7d = m['5DayPriceReturnDaily'] != null
-          ? Math.round(m['5DayPriceReturnDaily'] * 10) / 10
-          : m['weekPriceReturnDaily'] != null
-            ? Math.round(m['weekPriceReturnDaily'] * 10) / 10
-            : null;
-        return { ticker: item.ticker, currentPrice: currentPrice, perf7d: perf7d };
-      } catch(e) {
-        return { ticker: item.ticker, currentPrice: null, perf7d: null };
-      }
-    }));
+    var BATCH = 10;
+    for (var i = 0; i < usTickers.length; i += BATCH) {
+      var batch = usTickers.slice(i, i + BATCH);
+      var results = await Promise.all(batch.map(async function(item) {
+        try {
+          var d = await fetchFinnhub(item.sym, FINNHUB_KEY);
+          return { ticker: item.ticker, currentPrice: d.currentPrice, perf7d: d.perf7d };
+        } catch(e) {
+          return { ticker: item.ticker, currentPrice: null, perf7d: null };
+        }
+      }));
+      results.forEach(function(r){ dataMap[r.ticker] = r; });
+      if (i + BATCH < usTickers.length) await sleep(1000);
+    }
 
-    // 2b. Stooq for international tickers
+    // 2b. Stooq for international — sequential with 300ms pause to avoid rate limit
     var intlTickers = companies
       .map(function(c){ return { ticker: c.ticker, sym: STOOQ_MAP[c.ticker] }; })
       .filter(function(x){ return x.sym; });
 
-    var stooqResults = await Promise.all(intlTickers.map(async function(item) {
+    for (var j = 0; j < intlTickers.length; j++) {
+      var item = intlTickers[j];
       try {
         var data = await fetchStooq(item.sym);
-        return { ticker: item.ticker, currentPrice: data ? data.currentPrice : null, perf7d: data ? data.perf7d : null };
+        dataMap[item.ticker] = { ticker: item.ticker, currentPrice: data ? data.currentPrice : null, perf7d: data ? data.perf7d : null };
       } catch(e) {
-        return { ticker: item.ticker, currentPrice: null, perf7d: null };
+        dataMap[item.ticker] = { ticker: item.ticker, currentPrice: null, perf7d: null };
       }
-    }));
+      if (j < intlTickers.length - 1) await sleep(300);
+    }
 
-    // 3. Merge and update
-    var dataMap = {};
-    finnhubResults.concat(stooqResults).forEach(function(r){ dataMap[r.ticker] = r; });
-
+    // 3. Update companies
     var updated = 0;
     var updatedCompanies = companies.map(function(c) {
       var d = dataMap[c.ticker];
@@ -125,7 +138,7 @@ module.exports = async function handler(req, res) {
       total: companies.length,
       timestamp: new Date().toISOString(),
       usSample: updatedCompanies.slice(0,3).map(function(c){ return { ticker: c.ticker, currentPrice: c.currentPrice, perf7d: c.perf7d }; }),
-      intlSample: updatedCompanies.filter(function(c){ return STOOQ_MAP[c.ticker]; }).slice(0,5).map(function(c){ return { ticker: c.ticker, currentPrice: c.currentPrice, perf7d: c.perf7d }; }),
+      intlSample: updatedCompanies.filter(function(c){ return STOOQ_MAP[c.ticker]; }).map(function(c){ return { ticker: c.ticker, currentPrice: c.currentPrice, perf7d: c.perf7d }; }),
     });
 
   } catch(error) {
