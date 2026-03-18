@@ -260,16 +260,16 @@ Antworte NUR mit validem JSON ohne Markdown:
       </div>
       {co.events.filter(e=>e.title).length>0&&<div className="evts"><div className="evt-t">Nächste Events</div>{co.events.filter(e=>e.title).map(e=><div key={e.id} className="evt-i"><div className="edot" style={{background:PC[e.priority]||'#888'}}></div><span>{e.date} – {e.title}</span></div>)}</div>}
     </div>
-    {newsState==='loading'&&<div className="news-panel"><div className="news-loading"><span className="spin">⟳</span> News laden & mit Events abgleichen...</div></div>}
+    {newsState==='loading'&&<div className="news-panel"><div className="news-loading"><span className="spin">⟳</span> News laden &amp; mit Events abgleichen...</div></div>}
     {newsState&&newsState!=='loading'&&<div className="news-panel">
       <div className="news-panel-hdr">📰 News & Event-Abgleich (7 Tage)</div>
-      {newsState.analysis?.summary&&<div style={{fontSize:13,color:'var(--txt)',marginBottom:10,padding:'8px 10px',background:'rgba(255,105,0,.06)',borderRadius:6,borderLeft:'3px solid var(--pri)'}}>{newsState.analysis.summary}</div>}
-      {(newsState.analysis?.newsItems||[]).map((n,i)=><div key={i} className="news-item">
+      {newsState.analysis&&newsState.analysis.summary&&<div style={{fontSize:13,color:'var(--txt)',marginBottom:10,padding:'8px 10px',background:'rgba(255,105,0,.06)',borderRadius:6,borderLeft:'3px solid var(--pri)'}}>{newsState.analysis.summary}</div>}
+      {((newsState.analysis&&newsState.analysis.newsItems)||[]).map((n,i)=><div key={i} className="news-item">
         <div className="news-headline">{newsState.news[i]?.url?<a href={newsState.news[i].url} target="_blank" rel="noopener" style={{color:'inherit',textDecoration:'none'}}>{n.headline}</a>:n.headline}</div>
         <div className="news-meta">{newsState.news[i]?.source} · {newsState.news[i]?.date} · <span style={{color:relColor(n.relevanz),fontWeight:600}}>{n.relevanz}</span></div>
         <div className="news-relevance">{n.einschaetzung}</div>
       </div>)}
-      {(newsState.analysis?.eventChecks||[]).length>0&&<div className="event-check">
+      {((newsState.analysis&&newsState.analysis.eventChecks)||[]).length>0&&<div className="event-check">
         <div className="event-check-hdr">Event-Abgleich</div>
         {newsState.analysis.eventChecks.map((e,i)=><div key={i} className="event-row">
           <div className="event-ampel">{ampelIcon(e.ampel)}</div>
