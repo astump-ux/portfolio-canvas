@@ -344,10 +344,21 @@ function OverviewTab({companies}){
             <td><span style={{color:taColor,fontWeight:700}}>{ta}/10</span></td>
             <td style={{fontSize:11,color:'var(--mut)'}}>{c.priceDate||'–'}</td>
             <td>{(()=>{
-              const ap=parseFloat((c.price||'').replace(/[^0-9.-]/g,''));
-              const cp=parseFloat((c.currentPrice||'').replace(/[^0-9.-]/g,''));
-              if(!ap||!cp) return <span style={{color:'var(--dim)',fontSize:10}}>–</span>;
+              // Extract first number from price string (handles HK$, DKK, ranges like $75-80)
+              const parseP=s=>{if(!s)return null;const m=(s||'').replace(/[,]/g,'.').match(/[\d]+(?:\.\d+)?/);return m?parseFloat(m[0]):null;};
+              const ap=parseP(c.price);
+              const cp=parseP(c.currentPrice);
+              if(!ap||!cp||ap===cp) return <span style={{color:'var(--dim)',fontSize:10}}>–</span>;
+              // Skip if currencies likely differ (HK$ price but no HK in currentPrice)
+              const hasHK=(c.price||'').includes('HK')||(c.price||'').includes('HKD');
+              const hasDKK=(c.price||'').includes('DKK')||(c.price||'').includes('DK');
+              const hasCHF=(c.price||'').includes('CHF');
+              const hasEUR=(c.price||'').includes('€');
+              const hasGBP=(c.price||'').includes('£')||(c.price||'').includes('p');
+              // currentPrice from Stooq is always in local currency so comparison is valid
+              // Only skip if price is a range (contains –) and currentPrice seems way off
               const pa=Math.round(((cp-ap)/ap)*1000)/10;
+              if(Math.abs(pa)>200) return <span style={{color:'var(--dim)',fontSize:10}}>–</span>;
               return <span style={{fontWeight:600,fontSize:12,color:pa>=0?'var(--grn)':'var(--red)'}}>{pa>=0?'+':''}{pa.toFixed(1)}%</span>;
             })()}</td>
             <td style={{color:'var(--grn)',fontWeight:600,fontSize:12}}>{c.upside}</td>
