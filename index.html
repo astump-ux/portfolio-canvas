@@ -493,6 +493,119 @@ function Toast({msg,err,onDone}){
   return<div className={`toast${err?' toast-err':''}`}>{err?'❌':'✓'} {msg}</div>
 }
 
+
+function NewsTab({companies}){
+  const [status,setStatus]=useState('idle');
+  const [results,setResults]=useState([]);
+  const [progress,setProgress]=useState('');
+  const FKEY='d6tcsopr01qhkb43ln0gd6tcsopr01qhkb43ln10';
+  const US_TICKERS=['DDOG','TEAM','WDAY','NOW','CRM','HUBS','SNOW','PANW','GOOGL','OKTA','AMZN','META','MSFT','FSLR','FLNC','NFLX','MDT','ISRG','MU','NU','TSMC','UBER','TEM','UPWK','VEEV','DT','BABA','TCEHY'];
+
+  async function runScan(){
+    setStatus('loading');
+    setResults([]);
+    const now=Math.floor(Date.now()/1000);
+    const d1=new Date((now-7*24*60*60)*1000).toISOString().slice(0,10);
+    const d2=new Date(now*1000).toISOString().slice(0,10);
+
+    // Only scan US tickers (Finnhub has good coverage)
+    const scanCos=companies.filter(function(co){return US_TICKERS.indexOf(co.ticker)!==-1;});
+    const newsMap={};
+
+    // Fetch all news in parallel
+    setProgress('News fuer '+scanCos.length+' Aktien laden...');
+    await Promise.all(scanCos.map(async function(co){
+      try{
+        const sym=co.ticker==='TSMC'?'TSM':co.ticker;
+        const r=await fetch('https://finnhub.io/api/v1/company-news?symbol='+sym+'&from='+d1+'&to='+d2+'&token='+FKEY);
+        const news=await r.json();
+        newsMap[co.ticker]=(Array.isArray(news)?news:[]).slice(0,5);
+      }catch(e){newsMap[co.ticker]=[];}
+    }));
+
+    // Filter only tickers with news
+    const withNews=scanCos.filter(function(co){return newsMap[co.ticker]&&newsMap[co.ticker].length>0;});
+    setProgress('Claude analysiert '+withNews.length+' Aktien mit News...');
+
+    // Ask Claude to do a batch analysis
+    const ctx=withNews.map(function(co){
+      const evCtx=co.events.filter(function(e){return e.title;}).map(function(e){return e.title+' ('+e.date+')';}).join(', ');
+      const newsCtx=newsMap[co.ticker].map(function(n){return n.headline;}).join(' | ');
+      return co.ticker+' - Events: '+evCtx+' - News: '+newsCtx;
+    }).join('
+');
+
+    const prompt='Du bist ein Aktienanalyst. Analysiere welche der folgenden Aktien in den letzten 7 Tagen relevante News haben die ihre anstehenden Investment-Events betreffen.
+
+Daten (Format: TICKER - Events: ... - News: ...):
+'+ctx+'
+
+Gib NUR die TOP 5-8 relevantesten Aktien zurueck (wo News und Events zusammenpassen). Antworte NUR mit validem JSON:
+[{"ticker":"...","ampel":"gruen","headline":"wichtigste News in 1 Satz","eventMatch":"welches Event betroffen und warum in 1-2 Saetzen"}]';
+
+    try{
+      const cr=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1200,messages:[{role:'user',content:prompt}]})
+      });
+      const cd=await cr.json();
+      const raw=((cd.content&&cd.content[0]&&cd.content[0].text)||'[]');
+      const clean=raw.replace(/[`]{3}[a-z]*/g,'').replace(/[`]{3}/g,'').trim();
+      const parsed=JSON.parse(clean);
+      setResults(parsed);
+      setStatus('done');
+      setProgress('');
+    }catch(e){
+      setStatus('error');
+      setProgress('Fehler: '+e.message);
+    }
+  }
+
+  const ampelColor=function(a){return a==='gruen'?'var(--grn)':a==='gelb'?'var(--yel)':'var(--red)';};
+  const ampelIcon=function(a){return a==='gruen'?'🟢':a==='gelb'?'🟡':'🔴';};
+
+  return <div>
+    <div className="sec" style={{marginBottom:20}}>
+      <div className="sec-hdr">📰 News Scan – Alle Aktien (letzte 7 Tage)</div>
+      <div style={{padding:'16px 18px'}}>
+        <p style={{fontSize:13,color:'var(--mut)',marginBottom:14}}>Scannt alle US-Aktien im Portfolio auf aktuelle News und hebt hervor wo News mit anstehenden Investment-Events zusammenpassen.</p>
+        {status==='idle'&&<button className="btn btn-pri" onClick={runScan}>🔍 News Scan starten</button>}
+        {status==='loading'&&<div style={{display:'flex',alignItems:'center',gap:10,fontSize:13,color:'var(--mut)'}}><span style={{display:'inline-block',animation:'spin .8s linear infinite'}}>⟳</span>{progress}</div>}
+        {status==='error'&&<div><div style={{color:'var(--red)',fontSize:13,marginBottom:10}}>{progress}</div><button className="btn" onClick={runScan}>Erneut versuchen</button></div>}
+        {status==='done'&&<button className="btn" onClick={runScan} style={{marginBottom:16}}>🔄 Erneut scannen</button>}
+      </div>
+    </div>
+
+    {status==='done'&&results.length===0&&<div className="empty">Keine signifikanten News-Event-Verbindungen gefunden.</div>}
+
+    {status==='done'&&results.length>0&&<div>
+      <div style={{fontSize:12,color:'var(--mut)',marginBottom:12}}>{results.length} Aktien mit relevanten News gefunden:</div>
+      {results.map(function(r,i){
+        const co=companies.find(function(c){return c.ticker===r.ticker;});
+        return <div key={i} className="sec" style={{marginBottom:12}}>
+          <div style={{padding:'12px 16px',display:'flex',gap:12,alignItems:'flex-start'}}>
+            <div style={{fontSize:18,flexShrink:0,marginTop:1}}>{ampelIcon(r.ampel)}</div>
+            <div style={{flex:1}}>
+              <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:4,flexWrap:'wrap'}}>
+                <span style={{fontSize:15,fontWeight:700,color:'#fff'}}>{r.ticker}</span>
+                {co&&<span style={{fontSize:11,color:'var(--pri)'}}>{co.name}</span>}
+                <span style={{fontSize:11,fontWeight:600,color:ampelColor(r.ampel)}}>{r.ampel==='gruen'?'Positiv':r.ampel==='gelb'?'Neutral':'Risiko'}</span>
+              </div>
+              <div style={{fontSize:13,color:'var(--txt)',fontWeight:600,marginBottom:4}}>{r.headline}</div>
+              <div style={{fontSize:12,color:'var(--mut)',lineHeight:1.5,marginBottom:8}}>{r.eventMatch}</div>
+              <div style={{display:'flex',gap:6}}>
+                {co&&co.analyseUrl&&<a href={co.analyseUrl} target="_blank" rel="noopener" className="lbtn lbtn-a" style={{fontSize:10}}>Analyse</a>}
+                {co&&co.chatUrl&&<a href={co.chatUrl} target="_blank" rel="noopener" className="lbtn lbtn-c" style={{fontSize:10}}>Chat</a>}
+              </div>
+            </div>
+          </div>
+        </div>;
+      })}
+    </div>}
+  </div>;
+}
+
 function App(){
   const [cos,setCos]=useState([]);
   const [loaded,setLoaded]=useState(false);
@@ -568,12 +681,14 @@ function App(){
       <button className={`tab${tab==='overview'?' active':''}`} onClick={()=>setTab('overview')}>📊 Übersicht</button>
       <button className={`tab${tab==='events'?' active':''}`} onClick={()=>setTab('events')}>🗓️ Upcoming Events</button>
       <button className={`tab${tab==='manage'?' active':''}`} onClick={()=>setTab('manage')}>⚙️ Verwalten</button>
+      <button className={`tab${tab==='news'?' active':''}`} onClick={()=>setTab('news')}>📰 News Scan</button>
       <button className={`tab${tab==='make'?' active':''}`} onClick={()=>setTab('make')}>🔗 Make.com Setup</button>
     </div>
     <div className="main">
       {tab==='overview'&&<OverviewTab companies={cos}/>}
       {tab==='events'&&<EventsTab companies={cos}/>}
       {tab==='manage'&&<ManageTab companies={cos} onAdd={()=>setModal(blankCo())} onEdit={c=>setModal(JSON.parse(JSON.stringify(c)))} onDelete={del} onReset={reset} onSync={syncFromJSONBin} onPush={pushToJSONBin} syncing={syncing}/>}
+      {tab==='news'&&<NewsTab companies={cos}/>}
       {tab==='make'&&<MakeTab/>}
     </div>
     {modal&&<ModalForm co={modal} onSave={save} onClose={()=>setModal(null)}/>}
