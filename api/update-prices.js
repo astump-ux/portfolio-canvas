@@ -1,8 +1,8 @@
-// /api/update-prices.js - Finnhub v5, perf7d via 52w/metric fallback
-
+// /api/update-prices.js - Finnhub (US) + Stooq (International)
+ 
 const JSONBIN_ID = '69b68c14aa77b81da9e78b7e';
 const JSONBIN_KEY = '$2a$10$ehBtWQSMp.KI0cqlW569/OT9CjP9tSioF3M3edlZXSC1XiV3vI7Z2';
-
+ 
 const FINNHUB_MAP = {
   'DDOG':'DDOG','TEAM':'TEAM','WDAY':'WDAY','NOW':'NOW','CRM':'CRM',
   'HUBS':'HUBS','SNOW':'SNOW','PANW':'PANW','GOOGL':'GOOGL','OKTA':'OKTA',
@@ -10,17 +10,53 @@ const FINNHUB_MAP = {
   'NFLX':'NFLX','MDT':'MDT','ISRG':'ISRG','MU':'MU','NU':'NU',
   'TSMC':'TSM','UBER':'UBER','TEM':'TEM','UPWK':'UPWK','VEEV':'VEEV',
   'DT':'DT','BABA':'BABA','TCEHY':'TCEHY',
-  'MUV2':'MUV2:XETRA','SREN':'SREN:SW','TEG':'TEG:XETRA','DHL':'DHL:XETRA',
-  'WISE':'WISE:LSE','ORSTED':'ORSTED:OMXCOP',
-  'XIAOMI':'1810:HKEX','BYD':'1211:HKEX','HORIZON':'9660:HKEX','GEEKPLUS':'2030:HKEX',
 };
-
+ 
+// Stooq symbols for international tickers
+const STOOQ_MAP = {
+  'MUV2':   'muv2.de',
+  'SREN':   'sren.sw',
+  'TEG':    'teg.de',
+  'DHL':    'dhl.de',
+  'WISE':   'wise.l',
+  'ORSTED': 'orsted.co',
+  'XIAOMI': '1810.hk',
+  'BYD':    '1211.hk',
+  'HORIZON':'9660.hk',
+  'GEEKPLUS':'2030.hk',
+};
+ 
+// Fetch Stooq CSV: returns last 10 days of daily prices
+async function fetchStooq(symbol) {
+  const res = await fetch(
+    `https://stooq.com/q/d/l/?s=${symbol}&i=d`,
+    { headers: { 'User-Agent': 'Mozilla/5.0' } }
+  );
+  const csv = await res.text();
+  // CSV format: Date,Open,High,Low,Close,Volume
+  const lines = csv.trim().split('\n').filter(l => l && !l.startsWith('Date'));
+  if (lines.length < 2) return null;
+  // Parse last 2 entries for current price + 7d perf
+  const parse = line => {
+    const cols = line.split(',');
+    return { date: cols[0], close: parseFloat(cols[4]) };
+  };
+  const entries = lines.map(parse).filter(e => !isNaN(e.close));
+  if (!entries.length) return null;
+  const latest = entries[entries.length - 1];
+  const oldest = entries[0];
+  const perf7d = oldest.close
+    ? Math.round(((latest.close - oldest.close) / oldest.close) * 1000) / 10
+    : null;
+  return { currentPrice: String(Math.round(latest.close * 100) / 100), perf7d };
+}
+ 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-
+ 
   const FINNHUB_KEY = process.env.FINNHUB_KEY;
   if (!FINNHUB_KEY) return res.status(500).json({ error: 'FINNHUB_KEY not set' });
-
+ 
   try {
     // 1. Load companies from JSONBin
     const jbRes = await fetch(
@@ -31,89 +67,84 @@ module.exports = async function handler(req, res) {
     let companies = jbData?.companies;
     if (!Array.isArray(companies)) companies = Object.values(companies || {});
     if (!companies.length) return res.status(200).json({ message: 'No companies found' });
-
-    // 2. Fetch quotes for all mapped tickers
-    const tickers = companies
+ 
+    // 2a. Fetch Finnhub quotes for US tickers
+    const usTickers = companies
       .map(c => ({ ticker: c.ticker, sym: FINNHUB_MAP[c.ticker] }))
       .filter(x => x.sym);
-
-    const fetched = await Promise.all(tickers.map(async ({ ticker, sym }) => {
+ 
+    const finnhubResults = await Promise.all(usTickers.map(async ({ ticker, sym }) => {
       try {
-        // Quote: c=current, pc=prev close, dp=daily change%
-        const qRes = await fetch(
-          `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(sym)}&token=${FINNHUB_KEY}`
-        );
-        const quote = await qRes.json();
-
-        // Basic metrics for 7d/weekly perf (free tier has weekly price change)
-        const mRes = await fetch(
-          `https://finnhub.io/api/v1/stock/metric?symbol=${encodeURIComponent(sym)}&metric=all&token=${FINNHUB_KEY}`
-        );
-        const metrics = await mRes.json();
-
-        return { ticker, quote, metrics };
+        const [qRes, mRes] = await Promise.all([
+          fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(sym)}&token=${FINNHUB_KEY}`),
+          fetch(`https://finnhub.io/api/v1/stock/metric?symbol=${encodeURIComponent(sym)}&metric=all&token=${FINNHUB_KEY}`)
+        ]);
+        const [quote, metrics] = await Promise.all([qRes.json(), mRes.json()]);
+        const currentPrice = quote?.c ? String(Math.round(quote.c * 100) / 100) : null;
+        const m = metrics?.metric || {};
+        const perf7d = m['5DayPriceReturnDaily'] != null
+          ? Math.round(m['5DayPriceReturnDaily'] * 10) / 10
+          : m['weekPriceReturnDaily'] != null
+            ? Math.round(m['weekPriceReturnDaily'] * 10) / 10
+            : null;
+        return { ticker, currentPrice, perf7d };
       } catch(e) {
-        return { ticker, quote: null, metrics: null };
+        return { ticker, currentPrice: null, perf7d: null };
       }
     }));
-
+ 
+    // 2b. Fetch Stooq data for international tickers
+    const intlTickers = companies
+      .map(c => ({ ticker: c.ticker, sym: STOOQ_MAP[c.ticker] }))
+      .filter(x => x.sym);
+ 
+    const stooqResults = await Promise.all(intlTickers.map(async ({ ticker, sym }) => {
+      try {
+        const data = await fetchStooq(sym);
+        return { ticker, currentPrice: data?.currentPrice || null, perf7d: data?.perf7d || null };
+      } catch(e) {
+        return { ticker, currentPrice: null, perf7d: null };
+      }
+    }));
+ 
+    // 3. Merge results
     const dataMap = {};
-    fetched.forEach(f => { dataMap[f.ticker] = f; });
-
-    // 3. Update companies
+    [...finnhubResults, ...stooqResults].forEach(r => { dataMap[r.ticker] = r; });
+ 
     let updated = 0;
     const updatedCompanies = companies.map(c => {
       const d = dataMap[c.ticker];
-      if (!d?.quote?.c) return c;
-
-      const currentPrice = d.quote.c;
-
-      // Try to get 7d perf from metrics
-      // Finnhub provides: metric.series.annual/quarterly or basic metrics
-      // '5DayPriceReturnDaily' is available in basic metrics
-      let perf7d = null;
-      const m = d.metrics?.metric;
-      if (m) {
-        // Try 5-day return first (closest to 7d)
-        if (m['5DayPriceReturnDaily'] != null) {
-          perf7d = Math.round(m['5DayPriceReturnDaily'] * 10) / 10;
-        }
-        // Fallback: weekly return
-        else if (m['weekPriceReturnDaily'] != null) {
-          perf7d = Math.round(m['weekPriceReturnDaily'] * 10) / 10;
-        }
-      }
-
+      if (!d?.currentPrice) return c;
       updated++;
       return {
         ...c,
-        currentPrice: String(Math.round(currentPrice * 100) / 100),
-        perf7d,
+        currentPrice: d.currentPrice,
+        perf7d: d.perf7d,
         priceUpdatedAt: new Date().toISOString(),
       };
     });
-
+ 
     // 4. Write back to JSONBin
     await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_KEY },
       body: JSON.stringify({ companies: updatedCompanies, pricesUpdatedAt: new Date().toISOString() }),
     });
-
+ 
+    const intlSample = updatedCompanies
+      .filter(c => STOOQ_MAP[c.ticker])
+      .slice(0, 5)
+      .map(c => ({ ticker: c.ticker, currentPrice: c.currentPrice, perf7d: c.perf7d }));
+ 
     return res.status(200).json({
       success: true,
       updated,
       total: companies.length,
       timestamp: new Date().toISOString(),
-      sample: updatedCompanies.slice(0, 5).map(c => ({
-        ticker: c.ticker,
-        currentPrice: c.currentPrice,
-        perf7d: c.perf7d,
-      })),
-      // Debug: show what metrics keys are available
-      metricKeys: Object.keys(dataMap['AAPL']?.metrics?.metric || dataMap['DDOG']?.metrics?.metric || {}).slice(0, 10),
+      usSample: updatedCompanies.slice(0, 3).map(c => ({ ticker: c.ticker, currentPrice: c.currentPrice, perf7d: c.perf7d })),
+      intlSample,
     });
-
+ 
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
