@@ -38,7 +38,7 @@ async function fetchFinnhub(sym, key) {
 async function fetchStooq(symbol) {
   var now = new Date();
   var d2 = now.toISOString().slice(0,10).replace(/-/g,'');
-  var past = new Date(now.getTime() - 12 * 24 * 60 * 60 * 1000);
+  var past = new Date(now.getTime() - 35 * 24 * 60 * 60 * 1000);
   var d1 = past.toISOString().slice(0,10).replace(/-/g,'');
   var url = 'https://stooq.com/q/d/l/?s=' + symbol + '&d1=' + d1 + '&d2=' + d2 + '&i=d';
   var res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
@@ -52,10 +52,17 @@ async function fetchStooq(symbol) {
   if (!entries.length) return null;
   var latest = entries[entries.length - 1];
   var oldest = entries[0];
-  var perf7d = (entries.length >= 2 && oldest.close && oldest.close !== latest.close)
+  // 7d perf: compare latest vs entry ~7 trading days ago (entries sorted oldest->latest)
+  var week7idx = Math.max(0, entries.length - 6);
+  var week7entry = entries[Math.max(0, entries.length - 6 > 0 ? entries.length - 6 : 0)];
+  var perf7d = (week7entry && week7entry.close && week7entry.close !== latest.close)
+    ? Math.round(((latest.close - week7entry.close) / week7entry.close) * 1000) / 10
+    : null;
+  // 1m perf: compare latest vs oldest entry (~30 days ago)
+  var perf1m = (entries.length >= 3 && oldest.close && oldest.close !== latest.close)
     ? Math.round(((latest.close - oldest.close) / oldest.close) * 1000) / 10
     : null;
-  return { currentPrice: String(Math.round(latest.close * 100) / 100), perf7d: perf7d };
+  return { currentPrice: String(Math.round(latest.close * 100) / 100), perf7d: perf7d, perf1m: perf1m };
 }
 
 module.exports = async function handler(req, res) {
@@ -105,7 +112,7 @@ module.exports = async function handler(req, res) {
       var item = intlTickers[j];
       try {
         var data = await fetchStooq(item.sym);
-        dataMap[item.ticker] = { ticker: item.ticker, currentPrice: data ? data.currentPrice : null, perf7d: data ? data.perf7d : null };
+        dataMap[item.ticker] = { ticker: item.ticker, currentPrice: data ? data.currentPrice : null, perf7d: data ? data.perf7d : null, perf1m: data ? data.perf1m : null };
       } catch(e) {
         dataMap[item.ticker] = { ticker: item.ticker, currentPrice: null, perf7d: null };
       }
@@ -121,6 +128,7 @@ module.exports = async function handler(req, res) {
       return Object.assign({}, c, {
         currentPrice: d.currentPrice,
         perf7d: d.perf7d,
+        perf1m: d.perf1m != null ? d.perf1m : (c.perf1m || null),
         priceUpdatedAt: new Date().toISOString(),
       });
     });
