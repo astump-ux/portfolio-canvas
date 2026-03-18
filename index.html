@@ -153,6 +153,25 @@ tr:hover td{background:rgba(255,105,0,.03)}
 .sb2-d code{background:rgba(255,105,0,.1);color:var(--pri);padding:1px 5px;border-radius:3px;font-size:11px}
 .code-box{background:#0a0a0d;border:1px solid var(--brd);border-radius:6px;padding:12px 14px;font-family:monospace;font-size:12px;color:#22c55e;margin:8px 0;overflow-x:auto}
 @media(max-width:640px){.hdr{padding:16px 18px}.main{padding:16px 18px 40px}.tabs{padding:0 18px}.form-row{grid-template-columns:1fr}.form-row.col3{grid-template-columns:1fr 1fr}}
+
+.news-panel{background:var(--card2);border:1px solid var(--brd);border-radius:10px;margin:10px 18px 14px;padding:14px;font-size:13px}
+.news-panel-hdr{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--pri);margin-bottom:10px}
+.news-item{padding:8px 0;border-bottom:1px solid rgba(46,46,56,.5)}
+.news-item:last-child{border-bottom:none}
+.news-headline{font-weight:600;color:var(--txt);margin-bottom:2px;line-height:1.4}
+.news-meta{font-size:11px;color:var(--mut);margin-bottom:4px}
+.news-relevance{font-size:12px;color:var(--txt-dim);margin-top:3px}
+.event-check{background:var(--bg);border:1px solid var(--brd);border-radius:8px;padding:10px 12px;margin-top:10px}
+.event-check-hdr{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#888;margin-bottom:8px}
+.event-row{display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px solid rgba(46,46,56,.4)}
+.event-row:last-child{border-bottom:none}
+.event-ampel{font-size:14px;flex-shrink:0;margin-top:1px}
+.event-info{flex:1}
+.event-title-sm{font-weight:600;color:var(--txt);font-size:12px}
+.event-verdict{font-size:12px;color:var(--mut);margin-top:2px;line-height:1.4}
+.news-loading{color:var(--mut);font-size:12px;display:flex;align-items:center;gap:8px;padding:8px 0}
+.spin{animation:spin 1s linear infinite;display:inline-block}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
@@ -183,7 +202,49 @@ function blankCo(){return{id:'co_'+Date.now(),ticker:'',name:'',exchange:'',sect
 function ScoreBar({val}){return<div className="sb"><div className="sb-track"><div className="sb-fill" style={{width:Math.round(val*10)+'%'}}></div></div><span className="sb-num">{val}</span></div>}
 
 function PortfolioCard({co}){
+  const {useState:useS}=React;
   const sc=avg(co.scores);const rc=RC[co.rating]||'#888';
+  const [newsState,setNewsState]=useS(null);
+  const FKEY='d6tcsopr01qhkb43ln0gd6tcsopr01qhkb43ln10';
+
+  async function loadNews(){
+    setNewsState('loading');
+    try{
+      const sym=co.ticker==='TSMC'?'TSM':co.ticker;
+      const to=Math.floor(Date.now()/1000);
+      const d1=new Date((to-7*24*60*60)*1000).toISOString().slice(0,10);
+      const d2=new Date(to*1000).toISOString().slice(0,10);
+      const nr=await fetch('https://finnhub.io/api/v1/company-news?symbol='+sym+'&from='+d1+'&to='+d2+'&token='+FKEY);
+      const news=await nr.json();
+      const top=(Array.isArray(news)?news:[]).slice(0,8).map(n=>({headline:n.headline,source:n.source,date:new Date(n.datetime*1000).toLocaleDateString('de-DE'),url:n.url}));
+      if(!top.length){setNewsState({news:[],analysis:{summary:'Keine News in den letzten 7 Tagen gefunden.',newsItems:[],eventChecks:[]}});return;}
+      const evCtx=co.events.filter(e=>e.title).map(e=>'Event: '+e.title+' ('+e.date+')
+Wenn/Dann: '+e.wd.map(w=>w.text).join(' | ')).join('
+
+');
+      const nCtx=top.map(n=>'- '+n.headline+' ('+n.source+', '+n.date+')').join('
+');
+      const prompt='Du bist ein Aktienanalyst. Analysiere die folgenden News der letzten 7 Tage fuer '+co.name+' ('+co.ticker+') und gleiche sie mit den anstehenden Investment-Events ab.
+
+ANSTEHENDE EVENTS & WENN/DANN LOGIK:
+'+evCtx+'
+
+NEWS DER LETZTEN 7 TAGE:
+'+nCtx+'
+
+Antworte NUR mit validem JSON ohne Markdown:
+{"summary":"1-2 Satz Gesamteinschaetzung","newsItems":[{"headline":"...","relevanz":"hoch|mittel|niedrig","einschaetzung":"1 Satz"}],"eventChecks":[{"eventTitle":"...","ampel":"gruen|gelb|rot","verdict":"1-2 Saetze"}]}';
+      const cr=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1500,messages:[{role:'user',content:prompt}]})});
+      const cd=await cr.json();
+      const raw=(cd.content?.[0]?.text||'{}').replace(/```json|```/g,'').trim();
+      const parsed=JSON.parse(raw);
+      setNewsState({news:top,analysis:parsed});
+    }catch(e){setNewsState({news:[],analysis:{summary:'Fehler: '+e.message,newsItems:[],eventChecks:[]}});}
+  }
+
+  const ampelIcon=a=>a==='gruen'?'🟢':a==='gelb'?'🟡':'🔴';
+  const relColor=r=>r==='hoch'?'var(--pri)':r==='mittel'?'var(--yel)':'var(--mut)';
+
   return<div className="pcard">
     <div className="pcard-hdr"><div><div className="pcard-name">{co.name}</div><div className="pcard-tick">{co.ticker} · {co.exchange} · {co.sector}</div></div><div style={{textAlign:"right"}}><div className="pcard-price">{co.currentPrice||co.price}</div><div className="pcard-pm">{co.priceUpdatedAt?new Date(co.priceUpdatedAt).toLocaleDateString("de-DE"):co.priceDate}</div></div></div>
     <div className="pcard-body">
@@ -192,7 +253,6 @@ function PortfolioCard({co}){
       <div className="pills">{Object.entries(co.scores).map(([k,v])=><span key={k} className={`pill ${v>=8?'pill-g':v>=6?'pill-y':'pill-r'}`}>{SL[k].split(' ')[0]} {v}</span>)}</div>
       <div className="drow">
         <div className="di"><span className="di-l">Rating</span><span className="di-v" style={{color:rc}}>{co.rating==='KAUFEN'?'✓ ':co.rating==='HALTEN'?'= ':'✗ '}{co.rating}</span></div>
-        <div className="di"><span className="di-l">Zielkurs</span><span className="di-v">{co.zielkurs}</span></div>
         <div className="di"><span className="di-l">Upside</span><span className="di-v g">{co.upside}</span></div>
         <div className="di"><span className="di-l">Downside</span><span className="di-v r">{co.downside}</span></div>
         <div className="di"><span className="di-l">7T Perf.</span><span className="di-v" style={{color:co.perf7d==null?"var(--dim)":co.perf7d>=0?"var(--grn)":"var(--red)"}}>{co.perf7d==null?"–":(co.perf7d>=0?"+":"")+co.perf7d.toFixed(1)+"%"}</span></div>
@@ -200,9 +260,42 @@ function PortfolioCard({co}){
       </div>
       {co.events.filter(e=>e.title).length>0&&<div className="evts"><div className="evt-t">Nächste Events</div>{co.events.filter(e=>e.title).map(e=><div key={e.id} className="evt-i"><div className="edot" style={{background:PC[e.priority]||'#888'}}></div><span>{e.date} – {e.title}</span></div>)}</div>}
     </div>
+    {newsState==='loading'&&<div className="news-panel"><div className="news-loading"><span className="spin">⟳</span> News laden & mit Events abgleichen...</div></div>}
+    {newsState&&newsState!=='loading'&&<div className="news-panel">
+      <div className="news-panel-hdr">📰 News & Event-Abgleich (7 Tage)</div>
+      {newsState.analysis?.summary&&<div style={{fontSize:13,color:'var(--txt)',marginBottom:10,padding:'8px 10px',background:'rgba(255,105,0,.06)',borderRadius:6,borderLeft:'3px solid var(--pri)'}}>{newsState.analysis.summary}</div>}
+      {(newsState.analysis?.newsItems||[]).map((n,i)=><div key={i} className="news-item">
+        <div className="news-headline">{newsState.news[i]?.url?<a href={newsState.news[i].url} target="_blank" rel="noopener" style={{color:'inherit',textDecoration:'none'}}>{n.headline}</a>:n.headline}</div>
+        <div className="news-meta">{newsState.news[i]?.source} · {newsState.news[i]?.date} · <span style={{color:relColor(n.relevanz),fontWeight:600}}>{n.relevanz}</span></div>
+        <div className="news-relevance">{n.einschaetzung}</div>
+      </div>)}
+      {(newsState.analysis?.eventChecks||[]).length>0&&<div className="event-check">
+        <div className="event-check-hdr">Event-Abgleich</div>
+        {newsState.analysis.eventChecks.map((e,i)=><div key={i} className="event-row">
+          <div className="event-ampel">{ampelIcon(e.ampel)}</div>
+          <div className="event-info"><div className="event-title-sm">{e.eventTitle}</div><div className="event-verdict">{e.verdict}</div></div>
+        </div>)}
+      </div>}
+      <button onClick={()=>setNewsState(null)} style={{marginTop:10,fontSize:11,color:'var(--mut)',background:'none',border:'none',cursor:'pointer'}}>✕ Schließen</button>
+    </div>}
     <div className="pcard-foot">
       <div className="badges">{co.badges.map((b,i)=><span key={i} className="badge pill-o">{b}</span>)}</div>
-      <div className="lnks">{co.analyseUrl&&<a href={co.analyseUrl} target="_blank" rel="noopener" className="lbtn lbtn-a">📄 Analyse</a>}{co.chatUrl&&<a href={co.chatUrl} target="_blank" rel="noopener" className="lbtn lbtn-c">💬 Chat</a>}</div>
+      <div className="lnks">
+        {co.analyseUrl&&<a href={co.analyseUrl} target="_blank" rel="noopener" className="lbtn lbtn-a">📄 Analyse</a>}
+        {co.chatUrl&&<a href={co.chatUrl} target="_blank" rel="noopener" className="lbtn lbtn-c">💬 Chat</a>}
+        <button className="lbtn" style={{borderColor:'rgba(34,197,94,.35)',color:'var(--grn)',background:'rgba(34,197,94,.07)',cursor:'pointer'}} onClick={loadNews}>📰 News</button>
+        {co.chatUrl&&<button className="lbtn" style={{borderColor:'rgba(139,92,246,.35)',color:'var(--purple)',background:'rgba(139,92,246,.07)',cursor:'pointer'}}
+          onClick={()=>{const prompt='Bitte update die Analyse fuer '+co.ticker+' ('+co.name+') auf den aktuellen Stand.
+
+Fokus:
+- Neueste Quartalsergebnisse & Guidance
+- Aenderungen im Wettbewerbsumfeld
+- Score-Anpassungen falls noetig
+- Neues Deploy-Artifact am Ende
+
+Aktueller Kurs: '+(co.currentPrice||co.price)+' | Letzter Analysestand: '+co.priceDate;
+            navigator.clipboard.writeText(prompt).then(()=>alert('Prompt kopiert!'));}}>📋 Update</button>}
+      </div>
     </div>
   </div>
 }
@@ -371,7 +464,12 @@ function OverviewTab({companies}){
             </td>
             <td style={{whiteSpace:'nowrap'}}>
               {c.analyseUrl&&<a href={c.analyseUrl} target="_blank" rel="noopener" className="lbtn lbtn-a" style={{fontSize:10,marginRight:3}}>📄</a>}
-              {c.chatUrl&&<a href={c.chatUrl} target="_blank" rel="noopener" className="lbtn lbtn-c" style={{fontSize:10}}>💬</a>}
+              {c.chatUrl&&<a href={c.chatUrl} target="_blank" rel="noopener" className="lbtn lbtn-c" style={{fontSize:10,marginRight:3}}>💬</a>}
+              {c.chatUrl&&<button className="lbtn" style={{fontSize:10,borderColor:'rgba(139,92,246,.35)',color:'var(--purple)',background:'rgba(139,92,246,.07)',cursor:'pointer'}}
+                onClick={()=>{
+                  const prompt='Bitte update die Analyse für '+c.ticker+' ('+c.name+') auf den aktuellen Stand.\n\nFokus:\n- Neueste Quartalsergebnisse & Guidance\n- Änderungen im Wettbewerbsumfeld\n- Score-Anpassungen falls nötig\n- Neues Deploy-Artifact am Ende\n\nAktueller Kurs: '+(c.currentPrice||c.price)+' | Letzter Analysestand: '+c.priceDate;
+                  navigator.clipboard.writeText(prompt).then(()=>alert('✓ Update-Prompt für '+c.ticker+' kopiert!'));
+                }}>📋</button>}
             </td>
           </tr>
         })}</tbody>
