@@ -410,21 +410,75 @@ function OverviewTab({companies}){
   </div>
 }
 
-function EventsTab({companies}){
+function EventsTab({companies,newsCache}){
   const [filter,setFilter]=useState('all');
-  const allEvts=companies.flatMap(c=>c.events.filter(e=>e.title&&e.dateSort).map(e=>({...e,coId:c.id}))).sort((a,b)=>a.dateSort>b.dateSort?1:-1);
-  const visible=filter==='all'?allEvts:allEvts.filter(e=>e.coId===filter);
-  const months=[...new Set(visible.map(e=>{const d=new Date(e.dateSort);return isNaN(d.getTime())?(e.dateSort||'TBD'):d.toLocaleDateString('de-DE',{month:'long',year:'numeric'})}))];
+  const today=new Date();
+  today.setHours(0,0,0,0);
+
+  // Enrich events with overdue + newsMatch flags
+  const allEvts=companies.flatMap(c=>{
+    const coNews=newsCache?newsCache.find(n=>n.ticker===c.ticker):null;
+    return c.events.filter(e=>e.title&&e.dateSort).map(e=>{
+      const d=new Date(e.dateSort);
+      const overdue=!isNaN(d.getTime())&&d<today;
+      // Match if newsCache has entry for this ticker and eventMatch mentions event title keywords
+      const newsMatch=coNews&&e.title&&coNews.eventMatch&&
+        e.title.split(' ').filter(w=>w.length>4).some(w=>coNews.eventMatch.toLowerCase().includes(w.toLowerCase()));
+      return {...e,coId:c.id,overdue,newsMatch,newsAmpel:coNews?coNews.ampel:null,newsHeadline:coNews?coNews.headline:null};
+    });
+  }).sort((a,b)=>a.dateSort>b.dateSort?1:-1);
+
+  const [view,setView]=useState('upcoming'); // upcoming | overdue | matched
+  const filtered=view==='overdue'?allEvts.filter(e=>e.overdue):
+    view==='matched'?allEvts.filter(e=>e.newsMatch):
+    allEvts.filter(e=>!e.overdue);
+  const visible=filter==='all'?filtered:filtered.filter(e=>e.coId===filter);
+
+  const overdueCount=allEvts.filter(e=>e.overdue).length;
+  const matchedCount=allEvts.filter(e=>e.newsMatch).length;
+
+  const months=[...new Set(visible.map(e=>{const d=new Date(e.dateSort);return isNaN(d.getTime())?(e.dateSort||'TBD'):d.toLocaleDateString('de-DE',{month:'long',year:'numeric'});}))];
+
+  const ampelColor=a=>a==='gruen'?'var(--grn)':a==='gelb'?'var(--yel)':'var(--red)';
+  const ampelIcon=a=>a==='gruen'?'🟢':a==='gelb'?'🟡':'🔴';
+
   return<div>
-    <div className="chips"><span style={{fontSize:11,color:'var(--dim)',marginRight:4}}>Filter:</span>
-      <button className={`chip${filter==='all'?' active':''}`} onClick={()=>setFilter('all')}>Alle ({allEvts.length})</button>
-      {companies.map(c=><button key={c.id} className={`chip${filter===c.id?' active':''}`} onClick={()=>setFilter(c.id)}>{c.ticker} ({c.events.filter(e=>e.title&&e.dateSort).length})</button>)}
+    <div style={{display:'flex',gap:8,marginBottom:14,flexWrap:'wrap'}}>
+      <button className={`chip${view==='upcoming'?' active':''}`} onClick={()=>setView('upcoming')}>
+        📅 Upcoming ({allEvts.filter(e=>!e.overdue).length})
+      </button>
+      <button className={`chip${view==='overdue'?' active':''}`} onClick={()=>setView('overdue')}
+        style={overdueCount>0?{borderColor:'var(--red)',color:'var(--red)'}:{}}>
+        ⏰ Überfällig ({overdueCount})
+      </button>
+      <button className={`chip${view==='matched'?' active':''}`} onClick={()=>setView('matched')}
+        style={matchedCount>0?{borderColor:'var(--pri)',color:'var(--pri)'}:{}}>
+        📰 News-Match ({matchedCount})
+      </button>
     </div>
-    {visible.length===0?<div className="empty">Keine Events.</div>:months.map(g=>{
-      const items=visible.filter(e=>{const d=new Date(e.dateSort);return(isNaN(d.getTime())?(e.dateSort||'TBD'):d.toLocaleDateString('de-DE',{month:'long',year:'numeric'}))===g});
-      return items.length?<div key={g}><div className="tl-mon">📅 {g}</div>{items.map(e=>{const co=companies.find(c=>c.id===e.coId);return co?<EventItem key={e.id+co.id} ev={e} co={co}/>:null})}</div>:null
+    <div className="chips"><span style={{fontSize:11,color:'var(--dim)',marginRight:4}}>Aktie:</span>
+      <button className={`chip${filter==='all'?' active':''}`} onClick={()=>setFilter('all')}>Alle</button>
+      {companies.map(c=><button key={c.id} className={`chip${filter===c.id?' active':''}`} onClick={()=>setFilter(c.id)}>{c.ticker}</button>)}
+    </div>
+    {visible.length===0?<div className="empty">Keine Events in dieser Ansicht.</div>:months.map(g=>{
+      const items=visible.filter(e=>{const d=new Date(e.dateSort);return(isNaN(d.getTime())?(e.dateSort||'TBD'):d.toLocaleDateString('de-DE',{month:'long',year:'numeric'}))===g;});
+      return items.length?<div key={g}>
+        <div className="tl-mon">{view==='overdue'?'⏰':view==='matched'?'📰':'📅'} {g}</div>
+        {items.map(e=>{
+          const co=companies.find(c=>c.id===e.coId);
+          if(!co) return null;
+          return <div key={e.id+co.id} style={{position:'relative'}}>
+            {e.overdue&&<div style={{position:'absolute',top:8,right:8,fontSize:10,background:'rgba(239,68,68,.15)',color:'var(--red)',borderRadius:4,padding:'1px 6px',fontWeight:600,zIndex:1}}>ÜBERFÄLLIG</div>}
+            {e.newsMatch&&e.newsAmpel&&<div style={{position:'absolute',top:8,right:e.overdue?90:8,fontSize:10,background:`rgba(255,105,0,.12)`,color:'var(--pri)',borderRadius:4,padding:'1px 6px',fontWeight:600,zIndex:1}}>{ampelIcon(e.newsAmpel)} NEWS</div>}
+            <EventItem ev={e} co={co}/>
+            {e.newsMatch&&e.newsHeadline&&<div style={{margin:'-4px 0 8px 44px',fontSize:11,color:'var(--pri)',background:'rgba(255,105,0,.06)',borderRadius:'0 0 8px 8px',padding:'6px 12px',borderTop:'none'}}>
+              {ampelIcon(e.newsAmpel)} {e.newsHeadline}
+            </div>}
+          </div>;
+        })}
+      </div>:null;
     })}
-  </div>
+  </div>;
 }
 
 function ManageTab({companies,onAdd,onEdit,onDelete,onReset,onSync,onPush,syncing}){
@@ -615,6 +669,7 @@ function App(){
   const [toast,setToast]=useState(null);
   const [syncing,setSyncing]=useState(false);
   const [syncStatus,setSyncStatus]=useState('idle');
+  const [newsCache,setNewsCache]=useState([]);
 
   useEffect(()=>{
     async function init(){
@@ -624,7 +679,7 @@ function App(){
       setSyncStatus('spin');
       try{
         const r=await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}/latest`,{headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':'false'}});
-        if(r.ok){const d=await r.json();if(d.companies&&d.companies.length>0){data=d.companies;}}
+        if(r.ok){const d=await r.json();if(d.companies&&d.companies.length>0){data=d.companies;}if(d.newsCache)setNewsCache(d.newsCache);}}
         setSyncStatus('ok');
       }catch{setSyncStatus('err')}
       setCos(data);setLoaded(true);
@@ -687,7 +742,7 @@ function App(){
     </div>
     <div className="main">
       {tab==='overview'&&<OverviewTab companies={cos}/>}
-      {tab==='events'&&<EventsTab companies={cos}/>}
+      {tab==='events'&&<EventsTab companies={cos} newsCache={newsCache}/>}
       {tab==='manage'&&<ManageTab companies={cos} onAdd={()=>setModal(blankCo())} onEdit={c=>setModal(JSON.parse(JSON.stringify(c)))} onDelete={del} onReset={reset} onSync={syncFromJSONBin} onPush={pushToJSONBin} syncing={syncing}/>}
       {tab==='news'&&<NewsTab companies={cos}/> }
       {tab==='make'&&<MakeTab/>}
