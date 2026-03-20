@@ -482,7 +482,14 @@ function NewsTab({companies}){
             </div>
             <div style={{fontSize:13,fontWeight:600,color:'var(--txt)',marginBottom:4}}>{r.headline}</div>
             <div style={{fontSize:12,color:'var(--mut)',lineHeight:1.6,marginBottom:6}}>{r.eventMatch}</div>
-            {r.news&&r.news.length>0&&<div>{r.news.map((n,j)=><div key={j} style={{fontSize:11,color:'var(--dim)',padding:'3px 0',borderTop:'1px solid rgba(46,46,56,.3)'}}>{n.url?<a href={n.url} target="_blank" rel="noopener" style={{color:'var(--dim)'}}>{n.title}</a>:n.title}</div>)}</div>}
+            {r.news&&r.news.length>0&&<div style={{marginTop:8,background:'rgba(0,0,0,.2)',borderRadius:6,overflow:'hidden'}}>
+              {r.news.map((n,j)=><div key={j} style={{padding:'7px 10px',borderBottom:j<r.news.length-1?'1px solid rgba(46,46,56,.4)':'none',display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
+                <div style={{flex:1}}>
+                  {n.url?<a href={n.url} target="_blank" rel="noopener" style={{color:'var(--txt)',fontSize:12,lineHeight:1.4,textDecoration:'underline',textDecorationColor:'rgba(255,255,255,.2)'}}>{n.title}</a>:<span style={{color:'var(--txt)',fontSize:12,lineHeight:1.4}}>{n.title}</span>}
+                </div>
+                {n.date&&<span style={{fontSize:10,color:'var(--dim)',flexShrink:0,marginTop:2}}>{n.date}</span>}
+              </div>)}
+            </div>}
             <div style={{display:'flex',gap:6,marginTop:8}}>
               {co&&co.analyseUrl&&<a href={co.analyseUrl} target="_blank" rel="noopener" className="lbtn lbtn-a" style={{fontSize:10}}>Analyse</a>}
               {co&&co.chatUrl&&<a href={co.chatUrl} target="_blank" rel="noopener" className="lbtn lbtn-c" style={{fontSize:10}}>Chat</a>}
