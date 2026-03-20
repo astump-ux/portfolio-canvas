@@ -430,7 +430,8 @@ function NewsTab({companies}){
 
   function launchUpdate(){
     const tickers=companies.map(c=>c.ticker).filter(Boolean).sort().join(', ');
-    const prompt='News Update fuer alle '+companies.length+' Portfolio-Aktien ('+new Date().toLocaleDateString('de-DE')+'):\n\n'+tickers+'\n\nBitte fuer jeden Ticker die wichtigsten News der letzten 7 Tage via Web-Recherche suchen und mit den anstehenden Investment-Events abgleichen. Ampel-Bewertung gruen/gelb/rot pro Aktie. Am Ende Deploy-Artifact fuer JSONBin ausgeben.';
+    const deployNote='\n\nWICHTIG - Output Format: Gib am Ende ein JSX React Artifact aus mit einem Deploy-Button der per fetch() PUT die newsCache-Daten direkt in JSONBin schreibt (ID=69b68c14aa77b81da9e78b7e, Key=$2a$10$ehBtWQSMp.KI0cqlW569/OT9CjP9tSioF3M3edlZXSC1XiV3vI7Z2). Der Button soll: 1) GET JSONBin um companies[] zu laden, 2) PUT mit {companies, newsCache, newsCacheUpdatedAt} schreiben. Format newsCache: [{ticker, ampel(gruen/gelb/rot), headline, eventMatch, news:[{title,url}]}]. KEIN curl-Befehl, KEIN JSON-Download - NUR das JSX Artifact mit Button.';
+    const prompt='News Update fuer alle '+companies.length+' Portfolio-Aktien ('+new Date().toLocaleDateString('de-DE')+'):\n\n'+tickers+'\n\nBitte fuer jeden Ticker die wichtigsten News der letzten 7 Tage via Web-Recherche suchen und mit den anstehenden Investment-Events abgleichen. Ampel-Bewertung gruen/gelb/rot pro Aktie.'+deployNote;
     window.open('https://claude.ai/new?q='+encodeURIComponent(prompt),'_blank');
   }
 
@@ -454,18 +455,21 @@ function NewsTab({companies}){
   if(status==='empty') return <div>{header}<div className="empty">Noch kein News-Scan. Klicke "News Update in Claude starten".</div></div>;
   if(status==='error') return <div>{header}<div style={{color:'var(--red)',fontSize:13}}>Fehler beim Laden.</div></div>;
 
+  const [ampelFilter,setAmpelFilter]=useState('all');
   const gc=cache.filter(r=>r.ampel==='gruen').length;
   const yc=cache.filter(r=>r.ampel==='gelb').length;
   const rc=cache.filter(r=>r.ampel==='rot').length;
+  const visible=ampelFilter==='all'?cache:cache.filter(r=>r.ampel===ampelFilter);
 
   return <div>
     {header}
-    <div style={{display:'flex',gap:10,marginBottom:16,flexWrap:'wrap'}}>
-      <div className="kpi" style={{flex:1,minWidth:100}}><div className="kpi-l">Positiv</div><div className="kpi-v" style={{color:'var(--grn)'}}>{gc}x 🟢</div></div>
-      <div className="kpi" style={{flex:1,minWidth:100}}><div className="kpi-l">Neutral</div><div className="kpi-v" style={{color:'var(--yel)'}}>{yc}x 🟡</div></div>
-      <div className="kpi" style={{flex:1,minWidth:100}}><div className="kpi-l">Risiko</div><div className="kpi-v" style={{color:'var(--red)'}}>{rc}x 🔴</div></div>
+    <div style={{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap'}}>
+      <button className={'chip'+(ampelFilter==='all'?' active':'')} onClick={()=>setAmpelFilter('all')}>Alle ({cache.length})</button>
+      <button className={'chip'+(ampelFilter==='gruen'?' active':'')} onClick={()=>setAmpelFilter('gruen')} style={ampelFilter==='gruen'?{}:{color:'var(--grn)',borderColor:'rgba(34,197,94,.3)'}}>🟢 Positiv ({gc})</button>
+      <button className={'chip'+(ampelFilter==='gelb'?' active':'')} onClick={()=>setAmpelFilter('gelb')} style={ampelFilter==='gelb'?{}:{color:'var(--yel)',borderColor:'rgba(245,158,11,.3)'}}>🟡 Neutral ({yc})</button>
+      <button className={'chip'+(ampelFilter==='rot'?' active':'')} onClick={()=>setAmpelFilter('rot')} style={ampelFilter==='rot'?{}:{color:'var(--red)',borderColor:'rgba(239,68,68,.3)'}}>🔴 Risiko ({rc})</button>
     </div>
-    {cache.map((r,i)=>{
+    {visible.map((r,i)=>{
       const co=companies.find(c=>c.ticker===r.ticker);
       return <div key={i} className="sec" style={{marginBottom:10}}>
         <div style={{padding:'12px 16px',display:'flex',gap:12,alignItems:'flex-start'}}>
