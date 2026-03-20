@@ -223,11 +223,7 @@ function PortfolioCard({co}){
       <div className="lnks">
         {co.analyseUrl&&<a href={co.analyseUrl} target="_blank" rel="noopener" className="lbtn lbtn-a">Analyse</a>}
         {co.chatUrl&&<a href={co.chatUrl} target="_blank" rel="noopener" className="lbtn lbtn-c">Chat</a>}
-        {co.chatUrl&&<button className="lbtn" style={{borderColor:'rgba(139,92,246,.35)',color:'#8b5cf6',background:'rgba(139,92,246,.07)',cursor:'pointer'}}
-          onClick={function(){
-            var prompt='Update Analyse fuer '+co.ticker+' ('+co.name+'). Aktueller Kurs: '+(co.currentPrice||co.price)+'. Letzter Stand: '+co.priceDate+'. Bitte alle 13 Sektionen updaten und neues Deploy-Artifact ausgeben.';
-            navigator.clipboard.writeText(prompt).then(function(){alert('Prompt kopiert!');});
-          }}>Update</button>}
+        
       </div>
     </div>
   </div>
@@ -519,6 +515,13 @@ function NewsTab(props){
     }catch(e){ setStatus('error'); }
   }
 
+  function launchUpdate(){
+    var tickers = companies.map(function(c){ return c.ticker; }).filter(Boolean).sort().join(', ');
+    var prompt = 'News Update fuer alle '+companies.length+' Portfolio-Aktien ('+new Date().toLocaleDateString('de-DE')+'):\n\n'+tickers+'\n\nBitte fuer jeden Ticker die wichtigsten News der letzten 7 Tage via Web-Recherche suchen und mit den anstehenden Investment-Events abgleichen. Ampel-Bewertung gruen/gelb/rot pro Aktie. Am Ende Deploy-Artifact fuer JSONBin ausgeben.';
+    var url = 'https://claude.ai/new?q='+encodeURIComponent(prompt);
+    window.open(url, '_blank');
+  }
+
   function ampelIcon(a){ return a==='gruen' ? '🟢' : a==='gelb' ? '🟡' : '🔴'; }
   function ampelLabel(a){ return a==='gruen' ? 'Positiv' : a==='gelb' ? 'Neutral' : 'Risiko'; }
   function ampelColor(a){ return a==='gruen' ? 'var(--grn)' : a==='gelb' ? 'var(--yel)' : 'var(--red)'; }
@@ -526,41 +529,46 @@ function NewsTab(props){
   var headerEl = React.createElement('div',{className:'sec',style:{marginBottom:20}},
     React.createElement('div',{className:'sec-hdr'},'News Scan - Alle Aktien (letzte 7 Tage)'),
     React.createElement('div',{style:{padding:'16px 18px'}},
-      React.createElement('p',{style:{fontSize:13,color:'var(--mut)',marginBottom:8}},
-        'Claude Web-Recherche fuer alle Portfolio-Aktien. Update direkt im Claude Chat anstossen.'),
-      timestamp ? React.createElement('div',{style:{fontSize:11,color:'var(--dim)'}},
-        'Letztes Update: '+new Date(timestamp).toLocaleString('de-DE')) : null,
-      React.createElement('button',{className:'btn',style:{marginTop:10},onClick:loadCache},'Aktualisieren')
+      React.createElement('p',{style:{fontSize:13,color:'var(--mut)',marginBottom:12}},
+        'Claude Web-Recherche fuer alle Portfolio-Aktien. Neuen Scan in Claude starten — am Ende wird ein Deploy-Artifact ausgegeben das die Ergebnisse hier aktualisiert.'),
+      React.createElement('div',{style:{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}},
+        React.createElement('button',{className:'btn btn-pri',onClick:launchUpdate},
+          'News Update in Claude starten ↗'),
+        React.createElement('button',{className:'btn',onClick:loadCache,style:{fontSize:12}},
+          '🔄 Aktualisieren')
+      ),
+      timestamp ? React.createElement('div',{style:{fontSize:11,color:'var(--dim)',marginTop:8}},
+        'Letztes Update: '+new Date(timestamp).toLocaleString('de-DE')) : null
     )
   );
 
   if(status==='loading') return React.createElement('div',null, headerEl,
-    React.createElement('div',{style:{color:'var(--mut)',fontSize:13,padding:'20px 0',display:'flex',gap:8,alignItems:'center'}},
+    React.createElement('div',{style:{color:'var(--mut)',fontSize:13,padding:'12px 0',display:'flex',gap:8,alignItems:'center'}},
       React.createElement('span',{style:{display:'inline-block',animation:'spin .8s linear infinite'}},'⟳'),' Lade News-Cache...')
   );
 
   if(status==='empty') return React.createElement('div',null, headerEl,
-    React.createElement('div',{className:'empty'},'Noch kein News-Scan vorhanden. Bitte im Claude Chat einen News-Scan anstossen.')
+    React.createElement('div',{className:'empty'},'Noch kein News-Scan vorhanden. Klicke "News Update in Claude starten" um den ersten Scan durchzufuehren.')
   );
 
   if(status==='error') return React.createElement('div',null, headerEl,
-    React.createElement('div',{style:{color:'var(--red)',fontSize:13}},'Fehler beim Laden.')
+    React.createElement('div',{style:{color:'var(--red)',fontSize:13,padding:'8px 0'}},'Fehler beim Laden des News-Cache.')
   );
 
   var items = cache.map(function(r,i){
     var co = companies.find(function(c){ return c.ticker === r.ticker; });
-    return React.createElement('div',{key:i,className:'sec',style:{marginBottom:12}},
-      React.createElement('div',{style:{padding:'14px 16px',display:'flex',gap:12,alignItems:'flex-start'}},
+    return React.createElement('div',{key:i,className:'sec',style:{marginBottom:10}},
+      React.createElement('div',{style:{padding:'12px 16px',display:'flex',gap:12,alignItems:'flex-start'}},
         React.createElement('div',{style:{fontSize:18,flexShrink:0,marginTop:2}},ampelIcon(r.ampel)),
         React.createElement('div',{style:{flex:1}},
-          React.createElement('div',{style:{display:'flex',gap:8,alignItems:'center',marginBottom:5,flexWrap:'wrap'}},
-            React.createElement('span',{style:{fontSize:15,fontWeight:700,color:'#fff'}},r.ticker),
+          React.createElement('div',{style:{display:'flex',gap:8,alignItems:'center',marginBottom:4,flexWrap:'wrap'}},
+            React.createElement('span',{style:{fontSize:14,fontWeight:700,color:'#fff'}},r.ticker),
             co ? React.createElement('span',{style:{fontSize:11,color:'var(--pri)'}},'- '+co.name) : null,
             React.createElement('span',{style:{fontSize:11,fontWeight:600,color:ampelColor(r.ampel)}},ampelLabel(r.ampel))
           ),
-          React.createElement('div',{style:{fontSize:13,fontWeight:600,color:'var(--txt)',marginBottom:5}},r.headline),
+          React.createElement('div',{style:{fontSize:13,fontWeight:600,color:'var(--txt)',marginBottom:4}},r.headline),
           React.createElement('div',{style:{fontSize:12,color:'var(--mut)',lineHeight:1.6,marginBottom:6}},r.eventMatch),
-          r.news && r.news.length > 0 ? React.createElement('div',{style:{marginTop:6}},
+          r.news && r.news.length > 0 ? React.createElement('div',null,
             r.news.map(function(n,j){
               return React.createElement('div',{key:j,style:{fontSize:11,color:'var(--dim)',padding:'3px 0',borderTop:'1px solid rgba(46,46,56,.3)'}},
                 n.url ? React.createElement('a',{href:n.url,target:'_blank',rel:'noopener',style:{color:'var(--dim)',textDecoration:'none'}},n.title) : n.title
@@ -576,9 +584,25 @@ function NewsTab(props){
     );
   });
 
+  var greenCount = cache.filter(function(r){return r.ampel==='gruen';}).length;
+  var yellowCount = cache.filter(function(r){return r.ampel==='gelb';}).length;
+  var redCount = cache.filter(function(r){return r.ampel==='rot';}).length;
+
   return React.createElement('div',null, headerEl,
-    React.createElement('div',{style:{fontSize:12,color:'var(--mut)',marginBottom:12}},
-      cache.length+' Aktien mit relevanten News:'),
+    React.createElement('div',{style:{display:'flex',gap:10,marginBottom:16,flexWrap:'wrap'}},
+      React.createElement('div',{className:'kpi',style:{flex:'1',minWidth:100}},
+        React.createElement('div',{className:'kpi-l'},'Positiv'),
+        React.createElement('div',{className:'kpi-v',style:{color:'var(--grn)'}},greenCount+'x 🟢')
+      ),
+      React.createElement('div',{className:'kpi',style:{flex:'1',minWidth:100}},
+        React.createElement('div',{className:'kpi-l'},'Neutral'),
+        React.createElement('div',{className:'kpi-v',style:{color:'var(--yel)'}},yellowCount+'x 🟡')
+      ),
+      React.createElement('div',{className:'kpi',style:{flex:'1',minWidth:100}},
+        React.createElement('div',{className:'kpi-l'},'Risiko'),
+        React.createElement('div',{className:'kpi-v',style:{color:'var(--red)'}},redCount+'x 🔴')
+      )
+    ),
     React.createElement('div',null, items)
   );
 }
