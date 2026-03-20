@@ -413,6 +413,7 @@ function NewsTab({companies}){
   const [status,setStatus]=useState('loading');
   const [cache,setCache]=useState([]);
   const [timestamp,setTimestamp]=useState('');
+  const [ampelFilter,setAmpelFilter]=useState('all');
 
   useEffect(()=>{loadCache();},[]);
 
@@ -455,7 +456,6 @@ function NewsTab({companies}){
   if(status==='empty') return <div>{header}<div className="empty">Noch kein News-Scan. Klicke "News Update in Claude starten".</div></div>;
   if(status==='error') return <div>{header}<div style={{color:'var(--red)',fontSize:13}}>Fehler beim Laden.</div></div>;
 
-  const [ampelFilter,setAmpelFilter]=useState('all');
   const gc=cache.filter(r=>r.ampel==='gruen').length;
   const yc=cache.filter(r=>r.ampel==='gelb').length;
   const rc=cache.filter(r=>r.ampel==='rot').length;
