@@ -394,11 +394,7 @@ function OverviewTab({companies}){
             <td style={{whiteSpace:'nowrap'}}>
               {c.analyseUrl&&<a href={c.analyseUrl} target="_blank" rel="noopener" className="lbtn lbtn-a" style={{fontSize:10,marginRight:3}}>📄</a>}
               {c.chatUrl&&<a href={c.chatUrl} target="_blank" rel="noopener" className="lbtn lbtn-c" style={{fontSize:10,marginRight:3}}>💬</a>}
-              {c.chatUrl&&<button className="lbtn" style={{fontSize:10,borderColor:'rgba(139,92,246,.35)',color:'var(--purple)',background:'rgba(139,92,246,.07)',cursor:'pointer'}}
-                onClick={()=>{
-                  const prompt='Bitte update die Analyse für '+c.ticker+' ('+c.name+') auf den aktuellen Stand.\n\nFokus:\n- Neueste Quartalsergebnisse & Guidance\n- Änderungen im Wettbewerbsumfeld\n- Score-Anpassungen falls nötig\n- Neues Deploy-Artifact am Ende\n\nAktueller Kurs: '+(c.currentPrice||c.price)+' | Letzter Analysestand: '+c.priceDate;
-                  navigator.clipboard.writeText(prompt).then(()=>alert('✓ Update-Prompt für '+c.ticker+' kopiert!'));
-                }}>📋</button>}
+              
             </td>
           </tr>
         })}</tbody>
