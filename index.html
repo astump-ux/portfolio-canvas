@@ -318,10 +318,10 @@ function OverviewTab({companies}){
     if(sort.col==='name'){av=a.name;bv=b.name;}
     else if(sort.col==='score'){av=avg(a.scores);bv=avg(b.scores);}
     else if(sort.col==='ta'){av=a.scores.ta;bv=b.scores.ta;}
-    else if(sort.col==='rating'){av={KAUFEN:0,HALTEN:1,VERKAUFEN:2}[a.rating]??3;bv={KAUFEN:0,HALTEN:1,VERKAUFEN:2}[b.rating]??3;}
+    else if(sort.col==='rating'){av={KAUFEN:0,HALTEN:1,VERKAUFEN:2}[a.rating]||3;bv={KAUFEN:0,HALTEN:1,VERKAUFEN:2}[b.rating]||3;}
     else if(sort.col==='upside'){av=parseFloat((a.upside||'').replace(/[^0-9.-]/g,''))||0;bv=parseFloat((b.upside||'').replace(/[^0-9.-]/g,''))||0;}
     else if(sort.col==='downside'){av=parseFloat((a.downside||'').replace(/[^0-9.-]/g,''))||0;bv=parseFloat((b.downside||'').replace(/[^0-9.-]/g,''))||0;}
-    else if(sort.col==='perf7d'||sort.col==='perf1m'||sort.col==='perfAnalysis'){av=a[sort.col]??null;bv=b[sort.col]??null;if(av===null&&bv===null)return 0;if(av===null)return 1;if(bv===null)return -1;}
+    else if(sort.col==='perf7d'||sort.col==='perf1m'||sort.col==='perfAnalysis'){av=a[sort.col]||null;bv=b[sort.col]||null;if(av===null&&bv===null)return 0;if(av===null)return 1;if(bv===null)return -1;}
     else{av=a[sort.col]||'';bv=b[sort.col]||'';}
     if(typeof av==='string') return sort.dir==='asc'?av.localeCompare(bv):bv.localeCompare(av);
     return sort.dir==='asc'?av-bv:bv-av;
@@ -357,8 +357,8 @@ function OverviewTab({companies}){
           const sc=avg(c.scores);
           const ta=c.scores.ta||0;
           const taColor=ta>=7?'var(--grn)':ta>=5?'var(--yel)':'var(--red)';
-          const perf=c.perf7d??null;
-          const perf1m=c.perf1m??null;
+          const perf=c.perf7d||null;
+          const perf1m=c.perf1m||null;
           return<tr key={c.id}>
             <td><strong>{c.name}</strong><br/><span style={{color:'var(--dim)',fontSize:10}}>{c.ticker} · {c.exchange}</span></td>
             <td><span style={{color:'var(--pri)',fontWeight:700}}>{sc}</span></td>
@@ -459,7 +459,7 @@ function EventsTab({companies,newsCache}){
     {visible.length===0?<div className="empty">Keine Events in dieser Ansicht.</div>:months.map(g=>{
       const items=visible.filter(e=>{const d=new Date(e.dateSort);return(isNaN(d.getTime())?(e.dateSort||'TBD'):d.toLocaleDateString('de-DE',{month:'long',year:'numeric'}))===g;});
       return items.length?<div key={g}>
-        <div className="tl-mon">{view==='overdue'?'⏰':view==='matched'?'📰':'📅'} {g}</div>
+        <div className="tl-mon">{(view==='overdue'?'⏰':view==='matched'?'📰':'📅')+' '+g}</div>
         {items.map(e=>{
           const co=companies.find(c=>c.id===e.coId);
           if(!co) return null;
@@ -675,7 +675,7 @@ function App(){
       setSyncStatus('spin');
       try{
         const r=await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}/latest`,{headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':'false'}});
-        if(r.ok){const d=await r.json();if(d.companies&&d.companies.length>0){data=d.companies;}if(d.newsCache)setNewsCache(d.newsCache);}}
+        if(r.ok){const d=await r.json();if(d.companies&&d.companies.length>0){data=d.companies;}if(d.newsCache&&Array.isArray(d.newsCache))setNewsCache(d.newsCache);}}
         setSyncStatus('ok');
       }catch{setSyncStatus('err')}
       setCos(data);setLoaded(true);
@@ -686,7 +686,7 @@ function App(){
   useEffect(()=>{if(!loaded)return;try{localStorage.setItem(SK,JSON.stringify(cos))}catch(e){}},[cos,loaded]);
 
   const save=(co)=>{setCos(p=>p.some(c=>c.id===co.id)?p.map(c=>c.id===co.id?co:c):[...p,co]);setModal(null);setToast({msg:co.name+' gespeichert'})};
-  const del=(id)=>{const co=cos.find(c=>c.id===id);if(confirm(`„${co?.name}" löschen?`)){setCos(p=>p.filter(c=>c.id!==id));setToast({msg:'Gelöscht'})}};
+  const del=(id)=>{const co=cos.find(c=>c.id===id);if(confirm(`„${co&&co.name?co.name:""}" löschen?`)){setCos(p=>p.filter(c=>c.id!==id));setToast({msg:'Gelöscht'})}};
   const reset=()=>{if(confirm('Auf Seed-Daten zurücksetzen?')){setCos(SEED);setToast({msg:'Zurückgesetzt'})}};
   const syncFromJSONBin=async()=>{
     setSyncing(true);
