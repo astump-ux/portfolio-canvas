@@ -595,6 +595,7 @@ function App(){
   const [syncing,setSyncing]=useState(false);
   const [syncStatus,setSyncStatus]=useState('idle');
   const [newsCache,setNewsCache]=useState([]);
+  const [newsCacheUpdatedAt,setNewsCacheUpdatedAt]=useState('');
 
   useEffect(()=>{
     async function init(){
@@ -606,7 +607,7 @@ function App(){
         if(r.ok){
           const d=await r.json();
           if(d.companies&&d.companies.length>0){data=d.companies;}
-          if(d.newsCache&&Array.isArray(d.newsCache)){setNewsCache(d.newsCache);}
+          if(d.newsCache&&Array.isArray(d.newsCache)){setNewsCache(d.newsCache);setNewsCacheUpdatedAt(d.newsCacheUpdatedAt||'');}
         }
         setSyncStatus('ok');
       }catch(e){setSyncStatus('err');}
@@ -636,7 +637,7 @@ function App(){
   const pushToJSONBin=async()=>{
     setSyncing(true);
     try{
-      const r=await fetch('https://api.jsonbin.io/v3/b/'+JSONBIN_ID,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':JSONBIN_KEY},body:JSON.stringify({companies:cos,updatedAt:new Date().toISOString()})});
+      const r=await fetch('https://api.jsonbin.io/v3/b/'+JSONBIN_ID,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':JSONBIN_KEY},body:JSON.stringify({companies:cos,newsCache:newsCache,newsCacheUpdatedAt:newsCacheUpdatedAt||'',updatedAt:new Date().toISOString()})});
       if(!r.ok) throw new Error('HTTP '+r.status);
       setToast({msg:cos.length+' Analysen nach JSONBin gepusht'});setSyncStatus('ok');
     }catch(e){setToast({msg:'Push fehlgeschlagen: '+e.message,err:true});setSyncStatus('err');}
