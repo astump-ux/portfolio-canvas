@@ -514,14 +514,47 @@ function NewsTab({companies}){
       <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>
         <button className="btn btn-pri" onClick={launchUpdate}>News Update in Claude starten ↗</button>
         <button className="btn" onClick={loadCache} style={{fontSize:12}}>Aktualisieren</button>
+        <button className="btn" onClick={()=>setPasteMode(v=>!v)} style={{fontSize:12}}>Paste & Deploy</button>
       </div>
       {timestamp&&<div style={{fontSize:11,color:'var(--dim)',marginTop:8}}>Letztes Update: {new Date(timestamp).toLocaleString('de-DE')}</div>}
     </div>
   </div>;
 
-  if(status==='loading') return <div>{header}<div style={{color:'var(--mut)',fontSize:13,padding:'12px 0'}}>Lade News-Cache...</div></div>;
-  if(status==='empty') return <div>{header}<div className="empty">Noch kein News-Scan. Klicke "News Update in Claude starten".</div></div>;
-  if(status==='error') return <div>{header}<div style={{color:'var(--red)',fontSize:13}}>Fehler beim Laden.</div></div>;
+  const [pasteMode,setPasteMode]=useState(false);
+  const [pasteVal,setPasteVal]=useState('');
+  const [deploying,setDeploying]=useState(false);
+  const [deployMsg,setDeployMsg]=useState('');
+
+  async function deployPasted(){
+    setDeploying(true); setDeployMsg('');
+    try{
+      const raw=pasteVal.trim();
+      const clean=raw.replace(/```json/g,'').replace(/```/g,'').trim();
+      const nc=JSON.parse(clean);
+      if(!Array.isArray(nc)) throw new Error('Kein Array');
+      const r=await fetch('/api/deploy-news',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({newsCache:nc})});
+      const d=await r.json();
+      if(!d.ok) throw new Error(d.error||'Unbekannter Fehler');
+      setDeployMsg('✅ '+d.count+' Einträge deployed — Seite neu laden');
+      setPasteVal(''); setPasteMode(false);
+      loadCache();
+    }catch(e){setDeployMsg('❌ '+e.message);}
+    setDeploying(false);
+  }
+
+  const pastePanel=<div style={{background:'var(--card2)',border:'1px solid var(--brd)',borderRadius:10,padding:16,marginBottom:16}}>
+    <div style={{fontSize:12,fontWeight:700,color:'var(--pri)',marginBottom:10,textTransform:'uppercase',letterSpacing:.4}}>News Cache aus Claude Chat einfügen</div>
+    <textarea value={pasteVal} onChange={e=>setPasteVal(e.target.value)} rows={6} placeholder={'[{"ticker":"MU","eventId":"e1","ampel":"gruen","headline":"...","news":[...]},...]'} style={{width:'100%',marginBottom:10,fontFamily:'monospace',fontSize:11}}/>
+    <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+      <button className="btn btn-pri" onClick={deployPasted} disabled={deploying||!pasteVal.trim()}>{deploying?'Deploying...':'Deploy'}</button>
+      <button className="btn" onClick={()=>{setPasteMode(false);setPasteVal('');setDeployMsg('');}}>Abbrechen</button>
+      {deployMsg&&<span style={{fontSize:12,color:deployMsg.startsWith('✅')?'var(--grn)':'var(--red)'}}>{deployMsg}</span>}
+    </div>
+  </div>;
+
+  if(status==='loading') return <div>{header}{pasteMode&&pastePanel}<div style={{color:'var(--mut)',fontSize:13,padding:'12px 0'}}>Lade News-Cache...</div></div>;
+  if(status==='empty') return <div>{header}{pasteMode&&pastePanel}<div className="empty">Noch kein News-Scan. Klicke "News Update in Claude starten".</div></div>;
+  if(status==='error') return <div>{header}{pasteMode&&pastePanel}<div style={{color:'var(--red)',fontSize:13}}>Fehler beim Laden.</div></div>;
 
   const gc=cache.filter(r=>r.ampel==='gruen').length;
   const yc=cache.filter(r=>r.ampel==='gelb').length;
@@ -530,6 +563,7 @@ function NewsTab({companies}){
 
   return <div>
     {header}
+    {pasteMode&&pastePanel}
     <div style={{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap'}}>
       <button className={'chip'+(ampelFilter==='all'?' active':'')} onClick={()=>setAmpelFilter('all')}>Alle ({cache.length})</button>
       <button className={'chip'+(ampelFilter==='gruen'?' active':'')} onClick={()=>setAmpelFilter('gruen')} style={ampelFilter==='gruen'?{}:{color:'var(--grn)',borderColor:'rgba(34,197,94,.3)'}}>🟢 Positiv ({gc})</button>
