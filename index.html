@@ -360,15 +360,16 @@ function EventsTab({companies,newsCache}){
   // For each event, find matching newsCache entry (per eventId)
   function getMatch(co,ev){
     if(!newsCache||!newsCache.length) return null;
+    if(!co||!ev) return null;
     // New format: per eventId
     var m=newsCache.find(function(n){return n.ticker===co.ticker&&n.eventId===ev.id;});
     if(m) return m;
-    // Legacy fallback: per ticker — show under first event of ticker only to avoid duplication
+    // Legacy fallback: per ticker — show under first event of ticker only
     var legacy=newsCache.find(function(n){return n.ticker===co.ticker&&!n.eventId;});
     if(!legacy) return null;
-    // Only attach to first event of this ticker
-    var firstEvt=co.events.filter(function(e){return e.title&&e.dateSort;})
-      .sort(function(a,b){return a.dateSort>b.dateSort?1:-1;})[0];
+    var evts=(co.events||[]).filter(function(e){return e.title&&e.dateSort;});
+    evts.sort(function(a,b){return a.dateSort>b.dateSort?1:-1;});
+    var firstEvt=evts[0];
     return (firstEvt&&firstEvt.id===ev.id)?legacy:null;
   }
 
@@ -476,7 +477,7 @@ function EventsTab({companies,newsCache}){
 }
 
 
-function NewsTab({companies}){
+function NewsTab({companies,newsCache:newsCacheProp}){
   const [status,setStatus]=useState('loading');
   const [cache,setCache]=useState([]);
   const [timestamp,setTimestamp]=useState('');
@@ -489,7 +490,7 @@ function NewsTab({companies}){
     try{
       const r=await fetch('https://api.jsonbin.io/v3/b/'+(NEWS_BIN_ID!=='REPLACE_WITH_NEW_BIN_ID'?NEWS_BIN_ID:JSONBIN_ID)+'/latest',{headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':'false'}});
       const d=await r.json();
-      const nc=(d&&d.newsCache)||[];
+      const nc=(d&&d.newsCache)||(newsCacheProp&&newsCacheProp.length?newsCacheProp:[]);
       setCache(nc);
       setTimestamp((d&&d.newsCacheUpdatedAt)||'');
       setStatus(nc.length>0?'done':'empty');
@@ -791,7 +792,7 @@ function App(){
     <div className="main">
       {tab==='overview'&&<OverviewTab companies={cos}/>}
       {tab==='events'&&<EventsTab companies={cos} newsCache={newsCache}/>}
-      {tab==='news'&&<NewsTab companies={cos}/>}
+      {tab==='news'&&<NewsTab companies={cos} newsCache={newsCache}/>}
       {tab==='manage'&&<ManageTab companies={cos} onAdd={()=>setModal(blankCo())} onEdit={c=>setModal(JSON.parse(JSON.stringify(c)))} onDelete={del} onReset={reset} onSync={syncFromJSONBin} onPush={pushToJSONBin} syncing={syncing}/>}
       {tab==='make'&&<MakeTab/>}
     </div>
