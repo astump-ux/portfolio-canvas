@@ -354,60 +354,126 @@ function OverviewTab({companies}){
 function EventsTab({companies,newsCache}){
   const [view,setView]=useState('upcoming');
   const [filter,setFilter]=useState('all');
-  const today=new Date();
-  today.setHours(0,0,0,0);
+  const today=new Date(); today.setHours(0,0,0,0);
 
-  const allEvts=companies.flatMap(c=>{
-    const nc=newsCache?newsCache.find(n=>n.ticker===c.ticker):null;
-    return c.events.filter(e=>e.title&&e.dateSort).map(e=>{
-      const d=new Date(e.dateSort);
-      const overdue=!isNaN(d.getTime())&&d<today;
-      const kws=e.title?e.title.split(' ').filter(w=>w.length>4):[];
-      const newsMatch=nc&&nc.eventMatch&&kws.some(w=>nc.eventMatch.toLowerCase().includes(w.toLowerCase()));
-      return {...e,coId:c.id,overdue:overdue,newsMatch:newsMatch,newsAmpel:nc?nc.ampel:null,newsHeadline:nc?nc.headline:null};
+  // For each event, find matching newsCache entry (per eventId)
+  function getMatch(co,ev){
+    if(!newsCache||!newsCache.length) return null;
+    // New format: per eventId
+    var m=newsCache.find(function(n){return n.ticker===co.ticker&&n.eventId===ev.id;});
+    if(m) return m;
+    // Legacy fallback: per ticker only (old scans)
+    var legacy=newsCache.find(function(n){return n.ticker===co.ticker&&!n.eventId;});
+    if(!legacy) return null;
+    // Check if legacy eventMatch mentions event title keywords
+    var kws=ev.title?ev.title.split(' ').filter(function(w){return w.length>4;}):[];
+    var matched=kws.some(function(w){return legacy.eventMatch&&legacy.eventMatch.toLowerCase().includes(w.toLowerCase());});
+    return matched?legacy:null;
+  }
+
+  var allEvts=companies.flatMap(function(co){
+    return co.events.filter(function(e){return e.title&&e.dateSort;}).map(function(e){
+      var d=new Date(e.dateSort);
+      var overdue=!isNaN(d.getTime())&&d<today;
+      var match=getMatch(co,e);
+      return Object.assign({},e,{coId:co.id,overdue:overdue,match:match});
     });
-  }).sort((a,b)=>a.dateSort>b.dateSort?1:-1);
+  }).sort(function(a,b){return a.dateSort>b.dateSort?1:-1;});
 
-  const overdueCount=allEvts.filter(e=>e.overdue).length;
-  const matchedCount=allEvts.filter(e=>e.newsMatch).length;
+  var upcomingEvts=allEvts.filter(function(e){return !e.overdue;});
+  var overdueEvts=allEvts.filter(function(e){return e.overdue&&!e.match;});
+  var historyEvts=allEvts.filter(function(e){return !!e.match;});
 
-  const filtered=view==='overdue'?allEvts.filter(e=>e.overdue):view==='matched'?allEvts.filter(e=>e.newsMatch):allEvts.filter(e=>!e.overdue);
-  const visible=filter==='all'?filtered:filtered.filter(e=>e.coId===filter);
-  const months=[...new Set(visible.map(e=>{const d=new Date(e.dateSort);return isNaN(d.getTime())?(e.dateSort||'TBD'):d.toLocaleDateString('de-DE',{month:'long',year:'numeric'});}))];
+  var displayed=view==='upcoming'?upcomingEvts:view==='overdue'?overdueEvts:historyEvts;
+  var visible=filter==='all'?displayed:displayed.filter(function(e){return e.coId===filter;});
+  var months=[...new Set(visible.map(function(e){var d=new Date(e.dateSort);return isNaN(d.getTime())?(e.dateSort||'TBD'):d.toLocaleDateString('de-DE',{month:'long',year:'numeric'});}))];
 
-  const aIcon=a=>a==='gruen'?'🟢':a==='gelb'?'🟡':'🔴';
+  var aIcon=function(a){return a==='gruen'?'🟢':a==='gelb'?'🟡':'🔴';};
+  var aColor=function(a){return a==='gruen'?'var(--grn)':a==='gelb'?'var(--yel)':'var(--red)';};
+
+  function launchAllOverdueSearch(){
+    var evList=overdueEvts.map(function(e){
+      var co=companies.find(function(c){return c.id===e.coId;});
+      return co?co.ticker+' | Event: '+e.title+' (erwartet: '+e.date+')':'';
+    }).filter(Boolean).join('\n');
+    var prompt='Overdue Event News-Recherche fuer '+overdueEvts.length+' ueberfaellige Investment-Events:\n\n'+evList+'\n\nBitte suche gezielt nach News die zeigen ob diese Events eingetreten sind oder relevante Updates gibt. Nur Events mit wirklich passenden News aufnehmen. Antworte mit JSON-Array (kein Markdown):\n[{"ticker":"...","eventId":"...","ampel":"gruen","headline":"1 Satz","news":[{"title":"...","date":"TT.MM.JJJJ","url":"https://..."}],"searchedAt":"JJJJ-MM-TT"}]\n\nAm Ende Deploy-Artifact fuer JSONBin ausgeben.';
+    window.open('https://claude.ai/new?q='+encodeURIComponent(prompt),'_blank');
+  }
+
+  function NewsBlock({match}){
+    if(!match||!match.news||!match.news.length) return null;
+    return <div style={{marginTop:8,background:'rgba(0,0,0,.25)',borderRadius:6,overflow:'hidden'}}>
+      {match.news.map(function(n,j){
+        return <div key={j} style={{padding:'6px 10px',borderBottom:j<match.news.length-1?'1px solid rgba(46,46,56,.4)':'none',display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
+          <div style={{flex:1}}>
+            {n.url?<a href={n.url} target="_blank" rel="noopener" style={{color:'var(--txt)',fontSize:11,lineHeight:1.4,textDecoration:'underline',textDecorationColor:'rgba(255,255,255,.2)'}}>{n.title}</a>:<span style={{color:'var(--txt)',fontSize:11}}>{n.title}</span>}
+          </div>
+          {n.date&&<span style={{fontSize:10,color:'var(--dim)',flexShrink:0,marginTop:1}}>{n.date}</span>}
+        </div>;
+      })}
+    </div>;
+  }
 
   return <div>
     <div style={{display:'flex',gap:8,marginBottom:14,flexWrap:'wrap'}}>
-      <button className={'chip'+(view==='upcoming'?' active':'')} onClick={()=>setView('upcoming')}>Upcoming ({allEvts.filter(e=>!e.overdue).length})</button>
-      <button className={'chip'+(view==='overdue'?' active':'')} onClick={()=>setView('overdue')} style={overdueCount>0?{borderColor:'var(--red)',color:'var(--red)'}:{}}>Überfällig ({overdueCount})</button>
-      <button className={'chip'+(view==='matched'?' active':'')} onClick={()=>setView('matched')} style={matchedCount>0?{borderColor:'var(--pri)',color:'var(--pri)'}:{}}>News-Match ({matchedCount})</button>
+      <button className={'chip'+(view==='upcoming'?' active':'')} onClick={()=>setView('upcoming')}>Upcoming ({upcomingEvts.length})</button>
+      <button className={'chip'+(view==='overdue'?' active':'')} onClick={()=>setView('overdue')} style={overdueEvts.length>0?{borderColor:'var(--red)',color:'var(--red)'}:{}}>Overdue ({overdueEvts.length})</button>
+      <button className={'chip'+(view==='history'?' active':'')} onClick={()=>setView('history')} style={historyEvts.length>0?{borderColor:'var(--grn)',color:'var(--grn)'}:{}}>History ({historyEvts.length})</button>
     </div>
     <div className="chips">
       <span style={{fontSize:11,color:'var(--dim)',marginRight:4}}>Aktie:</span>
       <button className={'chip'+(filter==='all'?' active':'')} onClick={()=>setFilter('all')}>Alle</button>
-      {companies.map(c=><button key={c.id} className={'chip'+(filter===c.id?' active':'')} onClick={()=>setFilter(c.id)}>{c.ticker}</button>)}
+      {companies.map(function(co){return <button key={co.id} className={'chip'+(filter===co.id?' active':'')} onClick={()=>setFilter(co.id)}>{co.ticker}</button>;})}
     </div>
-    {visible.length===0?<div className="empty">Keine Events in dieser Ansicht.</div>:months.map(g=>{
-      const items=visible.filter(e=>{const d=new Date(e.dateSort);return(isNaN(d.getTime())?(e.dateSort||'TBD'):d.toLocaleDateString('de-DE',{month:'long',year:'numeric'}))===g;});
+    {view==='overdue'&&overdueEvts.length>0&&<div style={{marginBottom:16}}>
+      <button className="btn btn-pri" onClick={launchAllOverdueSearch}>Suche News fuer alle {overdueEvts.length} Overdue Events ↗</button>
+    </div>}
+    {visible.length===0?<div className="empty">Keine Events in dieser Ansicht.</div>:months.map(function(g){
+      var items=visible.filter(function(e){var d=new Date(e.dateSort);return(isNaN(d.getTime())?(e.dateSort||'TBD'):d.toLocaleDateString('de-DE',{month:'long',year:'numeric'}))===g;});
       if(!items.length) return null;
-      const icon=view==='overdue'?'⏰':view==='matched'?'📰':'📅';
+      var icon=view==='overdue'?'⏰':view==='history'?'✓':'📅';
       return <div key={g}>
         <div className="tl-mon">{icon} {g}</div>
-        {items.map(e=>{
-          const co=companies.find(c=>c.id===e.coId);
+        {items.map(function(e){
+          var co=companies.find(function(c){return c.id===e.coId;});
           if(!co) return null;
-          return <div key={e.id+co.id} style={{position:'relative'}}>
-            {e.overdue&&<div style={{position:'absolute',top:8,right:8,fontSize:10,background:'rgba(239,68,68,.15)',color:'var(--red)',borderRadius:4,padding:'1px 6px',fontWeight:600,zIndex:1}}>ÜBERFÄLLIG</div>}
-            {e.newsMatch&&e.newsAmpel&&<div style={{position:'absolute',top:8,right:e.overdue?90:8,fontSize:10,background:'rgba(255,105,0,.12)',color:'var(--pri)',borderRadius:4,padding:'1px 6px',fontWeight:600,zIndex:1}}>{aIcon(e.newsAmpel)} NEWS</div>}
-            <EventItem ev={e} co={co}/>
-            {e.newsMatch&&e.newsHeadline&&<div style={{margin:'-4px 0 8px 44px',fontSize:11,color:'var(--pri)',background:'rgba(255,105,0,.06)',borderRadius:'0 0 8px 8px',padding:'6px 12px'}}>{aIcon(e.newsAmpel)} {e.newsHeadline}</div>}
+          var pc=({high:'#ef4444',med:'#f59e0b',blue:'#3b82f6',low:'#22c55e'})[e.priority]||'#888';
+          var cls=({high:'tl-item tl-h',med:'tl-item tl-m',blue:'tl-item tl-b',low:'tl-item tl-l'})[e.priority]||'tl-item tl-b';
+          var bc=e.priority==='high'?'239,68,68':e.priority==='med'?'245,158,11':'59,130,246';
+          return <div key={e.id+co.id}>
+            <div className={cls} style={view==='overdue'?{borderLeft:'3px solid var(--red)'}:view==='history'?{borderLeft:'3px solid var(--grn)'}:{}}>
+              <div className="tl-dot-col"><div className="tl-dot" style={{background:view==='overdue'?'var(--red)':view==='history'?'var(--grn)':pc}}></div></div>
+              <div className="tl-body">
+                <div className="tl-top">
+                  <div className="tl-title">{co.name} – {e.title}</div>
+                  <div className="tl-meta">
+                    <span className="tl-date">{e.date}</span>
+                    <span className="badge pill-o" style={{fontSize:10}}>{co.ticker}</span>
+                    <span className="badge" style={{fontSize:10,background:'rgba('+bc+',.12)',color:pc,border:'1px solid rgba('+bc+',.2)'}}>{e.priority==='high'?'High':e.priority==='med'?'Medium':'Strukturell'}</span>
+                    {view==='overdue'&&<span style={{fontSize:10,background:'rgba(239,68,68,.15)',color:'var(--red)',borderRadius:4,padding:'1px 6px',fontWeight:600}}>OVERDUE</span>}
+                    {view==='history'&&e.match&&<span style={{fontSize:10,color:aColor(e.match.ampel)}}>{aIcon(e.match.ampel)}</span>}
+                  </div>
+                </div>
+                {e.desc&&<div className="tl-desc">{e.desc}</div>}
+                {e.wd.length>0&&<div className="tl-wd">{e.wd.map(function(w,i){return <div key={i} className="wd-row"><span className="wd-ico" style={{color:({up:'#22c55e',down:'#ef4444',neutral:'#f59e0b'})[w.t]}}>{{up:'▲',down:'▼',neutral:'→'}[w.t]}</span><span>{w.text}</span></div>;})}</div>}
+                {(view==='upcoming'||view==='history')&&e.match&&<div style={{marginTop:8}}>
+                  <div style={{fontSize:11,fontWeight:600,color:aColor(e.match.ampel),marginBottom:4}}>{aIcon(e.match.ampel)} {e.match.headline}</div>
+                  <NewsBlock match={e.match}/>
+                </div>}
+                {view==='overdue'&&e.match&&e.match.searchedAt&&!e.match.news&&<div style={{fontSize:11,color:'var(--dim)',marginTop:6}}>Letzte Suche: {e.match.searchedAt} — keine relevanten News gefunden</div>}
+                <div className="tl-lnks">
+                  {co.analyseUrl&&<a href={co.analyseUrl} target="_blank" rel="noopener" className="lbtn lbtn-a">Analyse</a>}
+                  {co.chatUrl&&<a href={co.chatUrl} target="_blank" rel="noopener" className="lbtn lbtn-c">Chat</a>}
+                </div>
+              </div>
+            </div>
           </div>;
         })}
       </div>;
     })}
-  </div>
+  </div>;
 }
+
 
 function NewsTab({companies}){
   const [status,setStatus]=useState('loading');
