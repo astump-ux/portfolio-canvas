@@ -163,7 +163,7 @@ const {useState,useEffect}=React;
 const SK='aktienanalyse-canvas-v22';
 const JSONBIN_ID='69b68c14aa77b81da9e78b7e';
 const JSONBIN_KEY='$2a$10$ehBtWQSMp.KI0cqlW569/OT9CjP9tSioF3M3edlZXSC1XiV3vI7Z2';
-const NEWS_BIN_ID='69be6952b7ec241ddc8b5e92';
+const NEWS_BIN_ID='REPLACE_WITH_NEW_BIN_ID';
 
 const SEED=[
   {id:'xiaomi',ticker:'1810.HK',name:'Xiaomi Corporation',exchange:'HKEX',sector:'Tech/Consumer',price:'HK$ 22.60',priceDate:'03.03.2026',w52:'11.94-35.90',scores:{gm:8,bg:7,qu:8,wa:9,bw:8,cf:8,ri:7,ta:9},rating:'KAUFEN',zielkurs:'HK$ 35-42',upside:'+55-87%',downside:'-15%',rr:'1:4',horizont:'2-4 J.',badges:['EV','AIoT','Smartphones'],chatUrl:'https://claude.ai/chat/e4c73bdc-63c3-4084-b41e-43ba145eb200',analyseUrl:'https://xiaomi829183333.netlify.app/',events:[{id:'e1',title:'FY2025 Jahresergebnisse',date:'Mitte März 2026',dateSort:'2026-03-15',priority:'high',desc:'Erstes vollständiges Jahresbild mit EV-Umsatzanteil.',wd:[{t:'up',text:'EV-Marge >= 15% -> nachkaufen.'},{t:'down',text:'EV-Marge < 8% -> 30-50% reduzieren.'}]},{id:'e2',title:'SU7 Ultra Hochlauf',date:'Q2 2026',dateSort:'2026-05-01',priority:'med',desc:'SU7 Ultra Listenpreis RMB 529.900.',wd:[{t:'up',text:'Bestellwoche >= 15.000 -> aufstocken.'},{t:'down',text:'< 5.000 Bestellungen -> trimmen.'}]},{id:'e3',title:'EMEA-Expansion & AIoT',date:'H2 2026',dateSort:'2026-07-01',priority:'blue',desc:'Int. Umsatzanteil ~42%; EMEA-ASP Ziel EUR 450-500.',wd:[{t:'up',text:'EMEA-ASP >= EUR 380 -> Zielkurs HK$ 42-50.'},{t:'down',text:'EMEA < 10% Marktanteil -> reduzieren.'}]}]},
@@ -363,13 +363,13 @@ function EventsTab({companies,newsCache}){
     // New format: per eventId
     var m=newsCache.find(function(n){return n.ticker===co.ticker&&n.eventId===ev.id;});
     if(m) return m;
-    // Legacy fallback: per ticker only (old scans)
+    // Legacy fallback: per ticker — show under first event of ticker only to avoid duplication
     var legacy=newsCache.find(function(n){return n.ticker===co.ticker&&!n.eventId;});
     if(!legacy) return null;
-    // Check if legacy eventMatch mentions event title keywords
-    var kws=ev.title?ev.title.split(' ').filter(function(w){return w.length>4;}):[];
-    var matched=kws.some(function(w){return legacy.eventMatch&&legacy.eventMatch.toLowerCase().includes(w.toLowerCase());});
-    return matched?legacy:null;
+    // Only attach to first event of this ticker
+    var firstEvt=co.events.filter(function(e){return e.title&&e.dateSort;})
+      .sort(function(a,b){return a.dateSort>b.dateSort?1:-1;})[0];
+    return (firstEvt&&firstEvt.id===ev.id)?legacy:null;
   }
 
   var allEvts=companies.flatMap(function(co){
