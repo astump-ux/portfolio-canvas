@@ -163,6 +163,7 @@ const {useState,useEffect}=React;
 const SK='aktienanalyse-canvas-v22';
 const JSONBIN_ID='69b68c14aa77b81da9e78b7e';
 const JSONBIN_KEY='$2a$10$ehBtWQSMp.KI0cqlW569/OT9CjP9tSioF3M3edlZXSC1XiV3vI7Z2';
+const NEWS_BIN_ID='69be6952b7ec241ddc8b5e92';
 
 const SEED=[
   {id:'xiaomi',ticker:'1810.HK',name:'Xiaomi Corporation',exchange:'HKEX',sector:'Tech/Consumer',price:'HK$ 22.60',priceDate:'03.03.2026',w52:'11.94-35.90',scores:{gm:8,bg:7,qu:8,wa:9,bw:8,cf:8,ri:7,ta:9},rating:'KAUFEN',zielkurs:'HK$ 35-42',upside:'+55-87%',downside:'-15%',rr:'1:4',horizont:'2-4 J.',badges:['EV','AIoT','Smartphones'],chatUrl:'https://claude.ai/chat/e4c73bdc-63c3-4084-b41e-43ba145eb200',analyseUrl:'https://xiaomi829183333.netlify.app/',events:[{id:'e1',title:'FY2025 Jahresergebnisse',date:'Mitte März 2026',dateSort:'2026-03-15',priority:'high',desc:'Erstes vollständiges Jahresbild mit EV-Umsatzanteil.',wd:[{t:'up',text:'EV-Marge >= 15% -> nachkaufen.'},{t:'down',text:'EV-Marge < 8% -> 30-50% reduzieren.'}]},{id:'e2',title:'SU7 Ultra Hochlauf',date:'Q2 2026',dateSort:'2026-05-01',priority:'med',desc:'SU7 Ultra Listenpreis RMB 529.900.',wd:[{t:'up',text:'Bestellwoche >= 15.000 -> aufstocken.'},{t:'down',text:'< 5.000 Bestellungen -> trimmen.'}]},{id:'e3',title:'EMEA-Expansion & AIoT',date:'H2 2026',dateSort:'2026-07-01',priority:'blue',desc:'Int. Umsatzanteil ~42%; EMEA-ASP Ziel EUR 450-500.',wd:[{t:'up',text:'EMEA-ASP >= EUR 380 -> Zielkurs HK$ 42-50.'},{t:'down',text:'EMEA < 10% Marktanteil -> reduzieren.'}]}]},
@@ -486,7 +487,7 @@ function NewsTab({companies}){
   async function loadCache(){
     setStatus('loading');
     try{
-      const r=await fetch('https://api.jsonbin.io/v3/b/'+JSONBIN_ID+'/latest',{headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':'false'}});
+      const r=await fetch('https://api.jsonbin.io/v3/b/'+(NEWS_BIN_ID!=='REPLACE_WITH_NEW_BIN_ID'?NEWS_BIN_ID:JSONBIN_ID)+'/latest',{headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':'false'}});
       const d=await r.json();
       const nc=(d&&d.newsCache)||[];
       setCache(nc);
@@ -680,12 +681,12 @@ function App(){
       try{const r=localStorage.getItem(SK);data=r?JSON.parse(r):SEED;}catch(e){data=SEED;}
       setSyncStatus('spin');
       try{
-        const r=await fetch('https://api.jsonbin.io/v3/b/'+JSONBIN_ID+'/latest',{headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':'false'}});
-        if(r.ok){
-          const d=await r.json();
-          if(d.companies&&d.companies.length>0){data=d.companies;}
-          if(d.newsCache&&Array.isArray(d.newsCache)){setNewsCache(d.newsCache);setNewsCacheUpdatedAt(d.newsCacheUpdatedAt||'');}
-        }
+        const [r1,r2]=await Promise.all([
+          fetch('https://api.jsonbin.io/v3/b/'+JSONBIN_ID+'/latest',{headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':'false'}}),
+          NEWS_BIN_ID!=='REPLACE_WITH_NEW_BIN_ID'?fetch('https://api.jsonbin.io/v3/b/'+NEWS_BIN_ID+'/latest',{headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':'false'}}):Promise.resolve(null)
+        ]);
+        if(r1.ok){const d=await r1.json();if(d.companies&&d.companies.length>0){data=d.companies;}}
+        if(r2&&r2.ok){const d=await r2.json();if(d.newsCache&&Array.isArray(d.newsCache)){setNewsCache(d.newsCache);setNewsCacheUpdatedAt(d.newsCacheUpdatedAt||'');}}
         setSyncStatus('ok');
       }catch(e){setSyncStatus('err');}
       setCos(data);
@@ -703,10 +704,14 @@ function App(){
   const syncFromJSONBin=async()=>{
     setSyncing(true);
     try{
-      const r=await fetch('https://api.jsonbin.io/v3/b/'+JSONBIN_ID+'/latest',{headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':'false'}});
-      if(!r.ok) throw new Error('HTTP '+r.status);
-      const d=await r.json();
+      const [r1,r2]=await Promise.all([
+        fetch('https://api.jsonbin.io/v3/b/'+JSONBIN_ID+'/latest',{headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':'false'}}),
+        NEWS_BIN_ID!=='REPLACE_WITH_NEW_BIN_ID'?fetch('https://api.jsonbin.io/v3/b/'+NEWS_BIN_ID+'/latest',{headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':'false'}}):Promise.resolve(null)
+      ]);
+      if(!r1.ok) throw new Error('HTTP '+r1.status);
+      const d=await r1.json();
       if(d.companies&&Array.isArray(d.companies)){setCos(d.companies);localStorage.setItem(SK,JSON.stringify(d.companies));setToast({msg:d.companies.length+' Analysen geladen'});setSyncStatus('ok');}
+      if(r2&&r2.ok){const nd=await r2.json();if(nd.newsCache&&Array.isArray(nd.newsCache)){setNewsCache(nd.newsCache);setNewsCacheUpdatedAt(nd.newsCacheUpdatedAt||'');}}
     }catch(e){setToast({msg:'Sync fehlgeschlagen: '+e.message,err:true});setSyncStatus('err');}
     setSyncing(false);
   };
