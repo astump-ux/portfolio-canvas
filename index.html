@@ -488,12 +488,28 @@ function NewsTab({companies,newsCache:newsCacheProp}){
   async function loadCache(){
     setStatus('loading');
     try{
+      // Try news bin first, then fall back to main bin
+    var nc=[];var ts='';
+    try{
       const r=await fetch('https://api.jsonbin.io/v3/b/'+(NEWS_BIN_ID!=='REPLACE_WITH_NEW_BIN_ID'?NEWS_BIN_ID:JSONBIN_ID)+'/latest',{headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':'false'}});
       const d=await r.json();
-      const nc=(d&&d.newsCache)||(newsCacheProp&&newsCacheProp.length?newsCacheProp:[]);
-      setCache(nc);
-      setTimestamp((d&&d.newsCacheUpdatedAt)||'');
-      setStatus(nc.length>0?'done':'empty');
+      nc=(d&&d.newsCache&&d.newsCache.length>0)?d.newsCache:[];
+      ts=(d&&d.newsCacheUpdatedAt)||'';
+    }catch(e2){}
+    // If news bin empty, try main bin
+    if(nc.length===0){
+      try{
+        const r2=await fetch('https://api.jsonbin.io/v3/b/'+JSONBIN_ID+'/latest',{headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':'false'}});
+        const d2=await r2.json();
+        if(d2&&d2.newsCache&&d2.newsCache.length>0){nc=d2.newsCache;ts=d2.newsCacheUpdatedAt||'';}
+      }catch(e3){}
+    }
+    // Also use prop as final fallback
+    if(nc.length===0&&newsCacheProp&&newsCacheProp.length>0){nc=newsCacheProp;}
+    const d={newsCache:nc,newsCacheUpdatedAt:ts};
+      setCache(d.newsCache||[]);
+      setTimestamp(d.newsCacheUpdatedAt||'');
+      setStatus((d.newsCache&&d.newsCache.length>0)?'done':'empty');
     }catch(e){setStatus('error');}
   }
 
@@ -721,7 +737,9 @@ function App(){
           NEWS_BIN_ID!=='REPLACE_WITH_NEW_BIN_ID'?fetch('https://api.jsonbin.io/v3/b/'+NEWS_BIN_ID+'/latest',{headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':'false'}}):Promise.resolve(null)
         ]);
         if(r1.ok){const d=await r1.json();if(d.companies&&d.companies.length>0){data=d.companies;}}
-        if(r2&&r2.ok){const d=await r2.json();if(d.newsCache&&Array.isArray(d.newsCache)){setNewsCache(d.newsCache);setNewsCacheUpdatedAt(d.newsCacheUpdatedAt||'');}}
+        if(r2&&r2.ok){const d=await r2.json();if(d.newsCache&&Array.isArray(d.newsCache)&&d.newsCache.length>0){setNewsCache(d.newsCache);setNewsCacheUpdatedAt(d.newsCacheUpdatedAt||'');}}
+        // Fallback: check main bin for newsCache (written by paste-and-deploy scripts)
+        else if(r1.ok){const d=await r1.json();if(d.newsCache&&Array.isArray(d.newsCache)&&d.newsCache.length>0){setNewsCache(d.newsCache);setNewsCacheUpdatedAt(d.newsCacheUpdatedAt||'');}}
         setSyncStatus('ok');
       }catch(e){setSyncStatus('err');}
       setCos(data);
