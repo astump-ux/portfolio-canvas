@@ -414,7 +414,7 @@ function EventsTab({companies,newsCache}){
           <div style={{flex:1}}>
             {n.url?<a href={n.url} target="_blank" rel="noopener" style={{color:'var(--txt)',fontSize:11,lineHeight:1.4,textDecoration:'underline',textDecorationColor:'rgba(255,255,255,.2)'}}>{n.title}</a>:<span style={{color:'var(--txt)',fontSize:11}}>{n.title}</span>}
           </div>
-          {n.date&&<span style={{fontSize:10,color:'var(--dim)',flexShrink:0,marginTop:1}}>{n.date}</span>}
+          {n.date&&<span style={{fontSize:11,color:'var(--mut)',flexShrink:0,marginTop:1,whiteSpace:'nowrap'}}>{n.date}</span>}
         </div>;
       })}
     </div>;
@@ -594,7 +594,7 @@ function NewsTab({companies,newsCache:newsCacheProp}){
                 <div style={{flex:1}}>
                   {n.url?<a href={n.url} target="_blank" rel="noopener" style={{color:'var(--txt)',fontSize:12,lineHeight:1.4,textDecoration:'underline',textDecorationColor:'rgba(255,255,255,.2)'}}>{n.title}</a>:<span style={{color:'var(--txt)',fontSize:12,lineHeight:1.4}}>{n.title}</span>}
                 </div>
-                {n.date&&<span style={{fontSize:10,color:'var(--dim)',flexShrink:0,marginTop:2}}>{n.date}</span>}
+                {n.date&&<span style={{fontSize:11,color:'var(--mut)',flexShrink:0,marginTop:2,whiteSpace:'nowrap'}}>{n.date}</span>}
               </div>)}
             </div>}
             <div style={{display:'flex',gap:6,marginTop:8}}>
