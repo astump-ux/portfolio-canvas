@@ -412,7 +412,7 @@ function EventsTab({companies,newsCache}){
       var co=companies.find(function(c){return c.id===e.coId;});
       return co?co.ticker+' | Event: '+e.title+' (erwartet: '+e.date+')':'';
     }).filter(Boolean).join('\n');
-    var prompt='Overdue Event News-Recherche fuer '+overdueEvts.length+' ueberfaellige Investment-Events:\n\n'+evList+'\n\nBitte suche gezielt nach News die zeigen ob diese Events eingetreten sind oder relevante Updates gibt. Nur Events mit wirklich passenden News aufnehmen. Antworte mit JSON-Array (kein Markdown):\n[{"ticker":"...","eventId":"...","ampel":"gruen","headline":"1 Satz","news":[{"title":"...","date":"TT.MM.JJJJ","url":"https://..."}],"searchedAt":"JJJJ-MM-TT"}]\n\nWICHTIG: Am Ende den kompletten newsCache als JSON-Block ausgeben (```json [...] ```) damit er in die Portfolio-App kopiert werden kann. KEIN Artifact, KEIN Download.';
+    var prompt='Overdue Event News-Recherche fuer '+overdueEvts.length+' ueberfaellige Investment-Events:\n\n'+evList+'\n\nBitte suche gezielt nach News die zeigen ob diese Events eingetreten sind oder relevante Updates gibt. Nur Events mit wirklich passenden News aufnehmen. Antworte mit JSON-Array (kein Markdown):\n[{"ticker":"...","eventId":"...","ampel":"gruen","headline":"1 Satz","news":[{"title":"...","date":"TT.MM.JJJJ","url":"https://..."}],"searchedAt":"JJJJ-MM-TT"}]';
     window.open('https://claude.ai/new?q='+encodeURIComponent(prompt),'_blank');
   }
 
@@ -518,7 +518,7 @@ function NewsTab({companies,newsCache:newsCacheProp}){
     window.open('https://claude.ai/new?q='+encodeURIComponent(prompt),'_blank');
   }
 
-  const aIcon=a=>a==='gruen'?'🟢':a==='gelb'?'🟡':'🔴\n\nWICHTIG: Am Ende den kompletten newsCache als JSON-Block ausgeben (```json [...] ```) damit er in die Portfolio-App kopiert werden kann. KEIN Artifact, KEIN Download.';
+  const aIcon=a=>a==='gruen'?'🟢':a==='gelb'?'🟡':'🔴';
   const aLabel=a=>a==='gruen'?'Positiv':a==='gelb'?'Neutral':'Risiko';
   const aColor=a=>a==='gruen'?'var(--grn)':a==='gelb'?'var(--yel)':'var(--red)';
 
