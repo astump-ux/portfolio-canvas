@@ -365,20 +365,27 @@ function OverviewTab({companies}){
     if(!s) return '9999-12-31';
     // Already in YYYY-MM-DD format
     if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-    // Quarter: Q1/Q2/Q3/Q4 YYYY
-    var qm=s.match(/Q(\d)\s*(\d{4})/i);
-    if(qm){var qStarts={'1':'01','2':'04','3':'07','4':'10'};return qm[2]+'-'+(qStarts[qm[1]]||'01')+'-01';}
-    // H1/H2 YYYY
-    var hm=s.match(/H(\d)\s*(\d{4})/i);
-    if(hm){return hm[2]+'-'+(hm[1]==='1'?'01':'07')+'-01';}
-    // Month name YYYY: "Mai 2026", "April 2026" etc
-    var months={jan:'01',feb:'02',mär:'03',mar:'03',apr:'04',mai:'05',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',okt:'10',oct:'10',nov:'11',dez:'12',dec:'12'};
-    var mm=s.toLowerCase().match(/([a-zä]+)[\.\s]*(\d{4})/);
-    if(mm){var mo=months[mm[1].slice(0,3)];if(mo)return mm[2]+'-'+mo+'-01';}
-    // Just year: "2026"
-    var ym=s.match(/^(\d{4})$/);
-    if(ym) return ym[1]+'-01-01';
-    // TBD or unknown
+    var qStarts={'1':'01','2':'04','3':'07','4':'10'};
+    var months={jan:'01',feb:'02',mar:'03','mär':'03',apr:'04',mai:'05',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',okt:'10',oct:'10',nov:'11',dez:'12',dec:'12'};
+    // Take only first part if compound (e.g. "Q1/Q2 2026" or "Q4 2026 / Q1 2027")
+    var first=s.split(/\/|\s*-\s*|\s+oder\s+/i)[0].trim();
+    // Try on first part, then full string
+    var attempts=[first,s];
+    for(var i=0;i<attempts.length;i++){
+      var t=attempts[i].trim();
+      // Quarter: Q1 2026 or Q1CY2026 or Q12026
+      var qm=t.match(/Q(\d)\s*(?:CY|FY)?\s*(\d{4})/i);
+      if(qm) return qm[2]+'-'+(qStarts[qm[1]]||'01')+'-01';
+      // H1/H2 YYYY
+      var hm=t.match(/H(\d)\s*(?:CY|FY)?\s*(\d{4})/i);
+      if(hm) return hm[2]+'-'+(hm[1]==='1'?'01':'07')+'-01';
+      // Month YYYY: "Mai 2026", "voraussichtlich März 2026"
+      var mm=t.toLowerCase().match(/([a-zä]{3,})[.\s]*(\d{4})/);
+      if(mm){var mo=months[mm[1].slice(0,3)];if(mo)return mm[2]+'-'+mo+'-01';}
+      // Just year
+      var ym=t.match(/(\d{4})/);
+      if(ym) return ym[1]+'-06-01';
+    }
     return '9999-12-31';
   }
 
