@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -265,7 +264,7 @@ function OverviewTab({companies}){
   const total=companies.length;
   const avgSc=total?Math.round(companies.reduce((a,c)=>a+avg(c.scores),0)/total*10)/10:0;
   const buys=companies.filter(c=>c.rating==='KAUFEN').length;
-  const allEvts=companies.flatMap(c=>c.events.filter(e=>e.title&&e.dateSort)).sort((a,b)=>a.dateSort>b.dateSort?1:-1);
+  const allEvts=companies.flatMap(c=>c.events.filter(e=>e.title&&e.dateSort)).sort((a,b)=>parseDateSort(a.dateSort)>parseDateSort(b.dateSort)?1:-1);
   const nextEvt=allEvts[0];
   const nextCo=nextEvt?companies.find(c=>c.events.some(e=>e.id===nextEvt.id)):null;
   if(!total) return <div className="empty">Noch keine Analysen vorhanden.</div>;
@@ -361,6 +360,28 @@ function OverviewTab({companies}){
   </div>
 }
 
+
+  function parseDateSort(s){
+    if(!s) return '9999-12-31';
+    // Already in YYYY-MM-DD format
+    if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    // Quarter: Q1/Q2/Q3/Q4 YYYY
+    var qm=s.match(/Q(\d)\s*(\d{4})/i);
+    if(qm){var qStarts={'1':'01','2':'04','3':'07','4':'10'};return qm[2]+'-'+(qStarts[qm[1]]||'01')+'-01';}
+    // H1/H2 YYYY
+    var hm=s.match(/H(\d)\s*(\d{4})/i);
+    if(hm){return hm[2]+'-'+(hm[1]==='1'?'01':'07')+'-01';}
+    // Month name YYYY: "Mai 2026", "April 2026" etc
+    var months={jan:'01',feb:'02',mär:'03',mar:'03',apr:'04',mai:'05',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',okt:'10',oct:'10',nov:'11',dez:'12',dec:'12'};
+    var mm=s.toLowerCase().match(/([a-zä]+)[\.\s]*(\d{4})/);
+    if(mm){var mo=months[mm[1].slice(0,3)];if(mo)return mm[2]+'-'+mo+'-01';}
+    // Just year: "2026"
+    var ym=s.match(/^(\d{4})$/);
+    if(ym) return ym[1]+'-01-01';
+    // TBD or unknown
+    return '9999-12-31';
+  }
+
 function EventsTab({companies,newsCache}){
   const [view,setView]=useState('upcoming');
   const [filter,setFilter]=useState('all');
@@ -389,12 +410,11 @@ function EventsTab({companies,newsCache}){
 
   var allEvts=companies.flatMap(function(co){
     return co.events.filter(function(e){return e.title&&e.dateSort;}).map(function(e){
-      var d=new Date(e.dateSort);
-      var overdue=!isNaN(d.getTime())&&d<today;
+      var ps=parseDateSort(e.dateSort);var d=new Date(ps);var overdue=ps!=='9999-12-31'&&!isNaN(d.getTime())&&d<today;
       var match=getMatch(co,e);
       return Object.assign({},e,{coId:co.id,overdue:overdue,match:match});
     });
-  }).sort(function(a,b){return a.dateSort>b.dateSort?1:-1;});
+  }).sort(function(a,b){return parseDateSort(a.dateSort)>parseDateSort(b.dateSort)?1:-1;});
 
   var upcomingEvts=allEvts.filter(function(e){return !e.overdue;});
   var overdueEvts=allEvts.filter(function(e){return e.overdue&&!e.match;});
@@ -402,7 +422,7 @@ function EventsTab({companies,newsCache}){
 
   var displayed=view==='upcoming'?upcomingEvts:view==='overdue'?overdueEvts:historyEvts;
   var visible=filter==='all'?displayed:displayed.filter(function(e){return e.coId===filter;});
-  var months=[...new Set(visible.map(function(e){var d=new Date(e.dateSort);return isNaN(d.getTime())?(e.dateSort||'TBD'):d.toLocaleDateString('de-DE',{month:'long',year:'numeric'});}))];
+  var months=[...new Set(visible.map(function(e){var ps=parseDateSort(e.dateSort);var d=new Date(ps);return isNaN(d.getTime())||ps==='9999-12-31'?(e.dateSort||'TBD'):d.toLocaleDateString('de-DE',{month:'long',year:'numeric'});}))];
 
   var aIcon=function(a){return a==='gruen'?'🟢':a==='gelb'?'🟡':'🔴';};
   var aColor=function(a){return a==='gruen'?'var(--grn)':a==='gelb'?'var(--yel)':'var(--red)';};
@@ -412,7 +432,7 @@ function EventsTab({companies,newsCache}){
       var co=companies.find(function(c){return c.id===e.coId;});
       return co?co.ticker+' | Event: '+e.title+' (erwartet: '+e.date+')':'';
     }).filter(Boolean).join('\n');
-    var prompt='Overdue Event News-Recherche fuer '+overdueEvts.length+' ueberfaellige Investment-Events:\n\n'+evList+'\n\nBitte suche gezielt nach News die zeigen ob diese Events eingetreten sind oder relevante Updates gibt. Nur Events mit wirklich passenden News aufnehmen. Antworte mit JSON-Array (kein Markdown):\n[{"ticker":"...","eventId":"...","ampel":"gruen","headline":"1 Satz","news":[{"title":"...","date":"TT.MM.JJJJ","url":"https://..."}],"searchedAt":"JJJJ-MM-TT"}]';
+    var prompt='Overdue Event News-Recherche fuer '+overdueEvts.length+' ueberfaellige Investment-Events:\n\n'+evList+'\n\nBitte suche gezielt nach News die zeigen ob diese Events eingetreten sind oder relevante Updates gibt. Nur Events mit wirklich passenden News aufnehmen. Antworte mit JSON-Array (kein Markdown):\n[{"ticker":"...","eventId":"...","ampel":"gruen","headline":"1 Satz","news":[{"title":"...","date":"TT.MM.JJJJ","url":"https://..."}],"searchedAt":"JJJJ-MM-TT"}]\n\nWICHTIG: Am Ende den kompletten newsCache als JSON-Block ausgeben (```json [...] ```) damit er in die Portfolio-App kopiert werden kann. KEIN Artifact, KEIN Download.';
     window.open('https://claude.ai/new?q='+encodeURIComponent(prompt),'_blank');
   }
 
@@ -444,7 +464,7 @@ function EventsTab({companies,newsCache}){
       <button className="btn btn-pri" onClick={launchAllOverdueSearch}>Suche News fuer alle {overdueEvts.length} Overdue Events ↗</button>
     </div>}
     {visible.length===0?<div className="empty">Keine Events in dieser Ansicht.</div>:months.map(function(g){
-      var items=visible.filter(function(e){var d=new Date(e.dateSort);return(isNaN(d.getTime())?(e.dateSort||'TBD'):d.toLocaleDateString('de-DE',{month:'long',year:'numeric'}))===g;});
+      var items=visible.filter(function(e){var ps=parseDateSort(e.dateSort);var d=new Date(ps);return(isNaN(d.getTime())||ps==='9999-12-31'?(e.dateSort||'TBD'):d.toLocaleDateString('de-DE',{month:'long',year:'numeric'}))===g;});
       if(!items.length) return null;
       var icon=view==='overdue'?'⏰':view==='history'?'✓':'📅';
       return <div key={g}>
@@ -518,7 +538,7 @@ function NewsTab({companies,newsCache:newsCacheProp}){
     window.open('https://claude.ai/new?q='+encodeURIComponent(prompt),'_blank');
   }
 
-  const aIcon=a=>a==='gruen'?'🟢':a==='gelb'?'🟡':'🔴';
+  const aIcon=a=>a==='gruen'?'🟢':a==='gelb'?'🟡':'🔴\n\nWICHTIG: Am Ende den kompletten newsCache als JSON-Block ausgeben (```json [...] ```) damit er in die Portfolio-App kopiert werden kann. KEIN Artifact, KEIN Download.';
   const aLabel=a=>a==='gruen'?'Positiv':a==='gelb'?'Neutral':'Risiko';
   const aColor=a=>a==='gruen'?'var(--grn)':a==='gelb'?'var(--yel)':'var(--red)';
 
