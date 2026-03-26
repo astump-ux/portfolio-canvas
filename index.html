@@ -392,7 +392,9 @@ function OverviewTab({companies}){
 
 
 function FeedTab({companies,newsCache}){
-  const [sortBy,setSortBy]=useState('event'); // 'event' | 'news' | 'ticker'
+  const [sortBy,setSortBy]=useState('event');
+  const [viewMode,setViewMode]=useState('upcoming'); // 'upcoming'|'overdue'|'history'
+  const [tickerFilter,setTickerFilter]=useState('all');
   const today=new Date(); today.setHours(0,0,0,0);
 
   function evtKey(e){
@@ -405,16 +407,28 @@ function FeedTab({companies,newsCache}){
 
   // Build one row per company
   var rows=companies.map(function(co){
-    // Next upcoming event
     var evts=(co.events||[]).filter(function(e){return e.title&&e.dateSort;});
     evts.sort(function(a,b){return evtKey(a)>evtKey(b)?1:-1;});
-    var nextEvt=evts.find(function(e){
-      var d=new Date(parseDateSort(e.dateSort)); return d>=today;
-    })||evts[0];
-    // Latest news
+    // Classify events
+    var upcomingEvts=evts.filter(function(e){return new Date(parseDateSort(e.dateSort))>=today;});
+    var overdueEvts=evts.filter(function(e){return new Date(parseDateSort(e.dateSort))<today;});
     var news=newsCache?newsCache.find(function(n){return n.ticker===co.ticker;}):null;
-    return {co,nextEvt,news};
-  }).filter(function(r){return r.nextEvt||r.news;});
+    var hasHistory=!!news;
+    // Pick event based on viewMode
+    var nextEvt=null;
+    if(viewMode==='upcoming') nextEvt=upcomingEvts[0]||null;
+    else if(viewMode==='overdue') nextEvt=overdueEvts[overdueEvts.length-1]||null;
+    else nextEvt=upcomingEvts[0]||evts[0]||null;
+    // Filter by viewMode
+    if(viewMode==='upcoming'&&!upcomingEvts.length) return null;
+    if(viewMode==='overdue'&&!overdueEvts.length) return null;
+    if(viewMode==='history'&&!hasHistory) return null;
+    return {co,nextEvt,news,upcomingCount:upcomingEvts.length,overdueCount:overdueEvts.length};
+  }).filter(function(r){
+    if(!r) return false;
+    if(tickerFilter!=='all'&&r.co.ticker!==tickerFilter) return false;
+    return true;
+  });
 
   // Sort
   if(sortBy==='event'){
@@ -441,21 +455,48 @@ function FeedTab({companies,newsCache}){
   function ampelBg(a){return a==='rot'?'#FEF2F2':a==='gelb'?'#FFFBEB':'#ECFDF5';}
   function ampelBorder(a){return a==='rot'?'#FECACA':a==='gelb'?'#FDE68A':'#A7F3D0';}
 
+  var allTickers=companies.map(function(co){return co.ticker;}).sort();
+
   return (
     <div>
-      <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:20,flexWrap:'wrap'}}>
-        <span style={{fontSize:11,color:'var(--mut)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.5px'}}>Sortierung:</span>
-        {['event','news','ticker'].map(function(s){
-          return <button key={s} className={'chip'+(sortBy===s?' active':'')} onClick={function(){setSortBy(s);}}>
-            {s==='event'?'📅 Nach Event':s==='news'?'📰 Nach News':'🔤 Ticker'}
+      {/* View mode + Sort */}
+      <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:14,flexWrap:'wrap'}}>
+        {['upcoming','overdue','history'].map(function(v){
+          var label=v==='upcoming'?'Upcoming':v==='overdue'?'Overdue':'History';
+          var count=companies.reduce(function(acc,co){
+            var evts=(co.events||[]).filter(function(e){return e.title&&e.dateSort;});
+            if(v==='upcoming') return acc+(evts.filter(function(e){return new Date(parseDateSort(e.dateSort))>=today;}).length>0?1:0);
+            if(v==='overdue') return acc+(evts.filter(function(e){return new Date(parseDateSort(e.dateSort))<today;}).length>0?1:0);
+            return acc+((newsCache&&newsCache.find(function(n){return n.ticker===co.ticker;}))?1:0);
+          },0);
+          return <button key={v} className={'chip'+(viewMode===v?' active':'')} onClick={function(){setViewMode(v);setTickerFilter('all');}}>
+            {label} <span style={{marginLeft:4,background:'var(--brd)',borderRadius:20,padding:'0 6px',fontSize:10}}>{count}</span>
           </button>;
         })}
-        <span style={{marginLeft:'auto',fontSize:12,color:'var(--mut)'}}>{rows.length} Aktien</span>
+        <div style={{width:1,height:20,background:'var(--brd)',margin:'0 4px'}}/>
+        {['event','news','ticker'].map(function(s){
+          return <button key={s} className={'chip'+(sortBy===s?' active':'')} onClick={function(){setSortBy(s);}}>
+            {s==='event'?'📅 Event':s==='news'?'📰 News':'🔤 A-Z'}
+          </button>;
+        })}
+        <span style={{marginLeft:'auto',fontSize:12,color:'var(--mut)',fontWeight:600}}>{rows.length} Aktien</span>
+      </div>
+
+      {/* Ticker filter chips */}
+      <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:16}}>
+        <button className={'chip'+(tickerFilter==='all'?' active':'')} onClick={function(){setTickerFilter('all');}}>Alle</button>
+        {allTickers.map(function(t){
+          return <button key={t} className={'chip'+(tickerFilter===t?' active':'')} onClick={function(){setTickerFilter(t);}}>
+            {t}
+          </button>;
+        })}
       </div>
 
       {/* Header row */}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:0,marginBottom:8,padding:'0 4px'}}>
-        <div style={{fontSize:10,fontWeight:700,color:'var(--mut)',textTransform:'uppercase',letterSpacing:'.5px',paddingLeft:16}}>Nächstes Event</div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:0,marginBottom:6,padding:'0 4px'}}>
+        <div style={{fontSize:10,fontWeight:700,color:'var(--mut)',textTransform:'uppercase',letterSpacing:'.5px',paddingLeft:16}}>
+          {viewMode==='upcoming'?'Nächstes Event':viewMode==='overdue'?'Überfälliges Event':'Letztes Event'}
+        </div>
         <div style={{fontSize:10,fontWeight:700,color:'var(--mut)',textTransform:'uppercase',letterSpacing:'.5px',paddingLeft:16}}>Aktuellste News</div>
       </div>
 
