@@ -390,6 +390,119 @@ function OverviewTab({companies}){
     return '9999-12-31';
   }
 
+
+function FeedTab({companies,newsCache}){
+  const [sortBy,setSortBy]=useState('event'); // 'event' | 'news' | 'ticker'
+  const today=new Date(); today.setHours(0,0,0,0);
+
+  function evtKey(e){
+    var a=parseDateSort(e.date||e.dateSort);
+    var b=parseDateSort(e.dateSort);
+    return a>b?a:b;
+  }
+
+  function ampelOrder(a){return a==='rot'?0:a==='gelb'?1:a==='gruen'?2:3;}
+
+  // Build one row per company
+  var rows=companies.map(function(co){
+    // Next upcoming event
+    var evts=(co.events||[]).filter(function(e){return e.title&&e.dateSort;});
+    evts.sort(function(a,b){return evtKey(a)>evtKey(b)?1:-1;});
+    var nextEvt=evts.find(function(e){
+      var d=new Date(parseDateSort(e.dateSort)); return d>=today;
+    })||evts[0];
+    // Latest news
+    var news=newsCache?newsCache.find(function(n){return n.ticker===co.ticker;}):null;
+    return {co,nextEvt,news};
+  }).filter(function(r){return r.nextEvt||r.news;});
+
+  // Sort
+  if(sortBy==='event'){
+    rows.sort(function(a,b){
+      var ka=a.nextEvt?evtKey(a.nextEvt):'9999';
+      var kb=b.nextEvt?evtKey(b.nextEvt):'9999';
+      return ka>kb?1:-1;
+    });
+  } else if(sortBy==='news'){
+    rows.sort(function(a,b){
+      var ao=a.news?ampelOrder(a.news.ampel):3;
+      var bo=b.news?ampelOrder(b.news.ampel):3;
+      if(ao!==bo) return ao-bo;
+      var ka=a.nextEvt?evtKey(a.nextEvt):'9999';
+      var kb=b.nextEvt?evtKey(b.nextEvt):'9999';
+      return ka>kb?1:-1;
+    });
+  } else {
+    rows.sort(function(a,b){return a.co.ticker>b.co.ticker?1:-1;});
+  }
+
+  function priColor(p){return p==='high'?'var(--red)':p==='med'?'var(--yel)':p==='blue'?'var(--blu)':'var(--grn)';}
+  function ampelColor(a){return a==='rot'?'var(--red)':a==='gelb'?'var(--yel)':'var(--grn)';}
+  function ampelBg(a){return a==='rot'?'#FEF2F2':a==='gelb'?'#FFFBEB':'#ECFDF5';}
+  function ampelBorder(a){return a==='rot'?'#FECACA':a==='gelb'?'#FDE68A':'#A7F3D0';}
+
+  return (
+    <div>
+      <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:20,flexWrap:'wrap'}}>
+        <span style={{fontSize:11,color:'var(--mut)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.5px'}}>Sortierung:</span>
+        {['event','news','ticker'].map(function(s){
+          return <button key={s} className={'chip'+(sortBy===s?' active':'')} onClick={function(){setSortBy(s);}}>
+            {s==='event'?'📅 Nach Event':s==='news'?'📰 Nach News':'🔤 Ticker'}
+          </button>;
+        })}
+        <span style={{marginLeft:'auto',fontSize:12,color:'var(--mut)'}}>{rows.length} Aktien</span>
+      </div>
+
+      {/* Header row */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:0,marginBottom:8,padding:'0 4px'}}>
+        <div style={{fontSize:10,fontWeight:700,color:'var(--mut)',textTransform:'uppercase',letterSpacing:'.5px',paddingLeft:16}}>Nächstes Event</div>
+        <div style={{fontSize:10,fontWeight:700,color:'var(--mut)',textTransform:'uppercase',letterSpacing:'.5px',paddingLeft:16}}>Aktuellste News</div>
+      </div>
+
+      {rows.map(function(row){
+        var co=row.co; var ev=row.nextEvt; var news=row.news;
+        var evDate=ev?new Date(parseDateSort(ev.dateSort)):null;
+        var daysAway=evDate?Math.round((evDate-today)/(1000*60*60*24)):null;
+        var isUrgent=daysAway!==null&&daysAway<=7;
+        return (
+          <div key={co.id} style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:1,marginBottom:2}}>
+            {/* LEFT: Event */}
+            <div style={{background:'var(--card)',border:'1px solid var(--brd)',borderRight:'none',borderRadius:'12px 0 0 12px',padding:'14px 16px',borderLeft:'3px solid '+(ev?priColor(ev.priority):'var(--brd)')}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8,marginBottom:6}}>
+                <div style={{display:'flex',gap:8,alignItems:'center',flex:1,minWidth:0}}>
+                  <span style={{fontSize:12,fontWeight:800,color:'var(--pri)',flexShrink:0}}>{co.ticker}</span>
+                  <span style={{fontSize:11,color:'var(--mut)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{co.name}</span>
+                </div>
+                {daysAway!==null&&<span style={{fontSize:10,fontWeight:700,color:isUrgent?'var(--red)':'var(--mut)',flexShrink:0,background:isUrgent?'#FEF2F2':'var(--card2)',padding:'2px 7px',borderRadius:20,border:'1px solid '+(isUrgent?'#FECACA':'var(--brd)')}}>{daysAway===0?'Heute':daysAway===1?'Morgen':daysAway>0?'in '+daysAway+'d':Math.abs(daysAway)+'d überfällig'}</span>}
+              </div>
+              {ev?<div>
+                <div style={{fontSize:12,fontWeight:600,color:'var(--txt)',marginBottom:3,lineHeight:1.4}}>{ev.title}</div>
+                <div style={{fontSize:11,color:'var(--mut)'}}>{ev.date}</div>
+                {ev.desc&&<div style={{fontSize:11,color:'var(--mut)',marginTop:4,lineHeight:1.5,overflow:'hidden',display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical'}}>{ev.desc}</div>}
+              </div>:<div style={{fontSize:11,color:'var(--dim)'}}>Kein Event</div>}
+            </div>
+            {/* RIGHT: News */}
+            <div style={{background:'var(--card)',border:'1px solid var(--brd)',borderLeft:'none',borderRadius:'0 12px 12px 0',padding:'14px 16px',borderRight:'3px solid '+(news?ampelColor(news.ampel):'var(--brd)')}}>
+              {news?<div>
+                <div style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:6}}>
+                  <span style={{background:ampelBg(news.ampel),border:'1px solid '+ampelBorder(news.ampel),color:ampelColor(news.ampel),fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:20,flexShrink:0}}>{news.ampel==='gruen'?'Positiv':news.ampel==='gelb'?'Neutral':'Risiko'}</span>
+                  <span style={{fontSize:12,fontWeight:600,color:'var(--txt)',lineHeight:1.4}}>{news.headline}</span>
+                </div>
+                {news.news&&news.news.slice(0,2).map(function(n,i){
+                  return <div key={i} style={{fontSize:11,color:'var(--mut)',padding:'4px 0',borderTop:i>0?'1px solid var(--brd)':'none',lineHeight:1.5}}>
+                    {n.url?<a href={n.url} target="_blank" rel="noopener" style={{color:'var(--mut)',textDecoration:'underline',textDecorationColor:'var(--brd)'}}>{n.title}{n.date&&' ('+n.date+')'}</a>:<span>{n.title}{n.date&&' ('+n.date+')'}</span>}
+                  </div>;
+                })}
+                {news.searchedAt&&<div style={{fontSize:10,color:'var(--dim)',marginTop:6}}>Stand: {news.searchedAt}</div>}
+              </div>:<div style={{fontSize:11,color:'var(--dim)',display:'flex',alignItems:'center',height:'100%'}}>Keine News verfügbar</div>}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function EventsTab({companies,newsCache}){
   const [view,setView]=useState('upcoming');
   const [filter,setFilter]=useState('all');
@@ -826,6 +939,7 @@ function App(){
     </div>
     <div className="tabs">
       <button className={'tab'+(tab==='overview'?' active':'')} onClick={()=>setTab('overview')}>Übersicht</button>
+      <button className={'tab'+(tab==='feed'?' active':'')} onClick={()=>setTab('feed')}>Portfolio Feed</button>
       <button className={'tab'+(tab==='events'?' active':'')} onClick={()=>setTab('events')}>Upcoming Events</button>
       <button className={'tab'+(tab==='news'?' active':'')} onClick={()=>setTab('news')}>News Scan</button>
       <button className={'tab'+(tab==='manage'?' active':'')} onClick={()=>setTab('manage')}>Verwalten</button>
@@ -833,6 +947,7 @@ function App(){
     </div>
     <div className="main">
       {tab==='overview'&&<OverviewTab companies={cos}/>}
+      {tab==='feed'&&<FeedTab companies={cos} newsCache={newsCache}/>}
       {tab==='events'&&<EventsTab companies={cos} newsCache={newsCache}/>}
       {tab==='news'&&<NewsTab companies={cos} newsCache={newsCache}/>}
       {tab==='manage'&&<ManageTab companies={cos} onAdd={()=>setModal(blankCo())} onEdit={c=>setModal(JSON.parse(JSON.stringify(c)))} onDelete={del} onReset={reset} onSync={syncFromJSONBin} onPush={pushToJSONBin} syncing={syncing}/>}
