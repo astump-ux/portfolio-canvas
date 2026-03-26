@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -421,7 +422,11 @@ function EventsTab({companies,newsCache}){
       var match=getMatch(co,e);
       return Object.assign({},e,{coId:co.id,overdue:overdue,match:match});
     });
-  }).sort(function(a,b){return parseDateSort(a.dateSort)>parseDateSort(b.dateSort)?1:-1;});
+  }).sort(function(a,b){
+    var ka=parseDateSort(a.date||a.dateSort)>parseDateSort(a.dateSort)?parseDateSort(a.date||a.dateSort):parseDateSort(a.dateSort);
+    var kb=parseDateSort(b.date||b.dateSort)>parseDateSort(b.dateSort)?parseDateSort(b.date||b.dateSort):parseDateSort(b.dateSort);
+    return ka>kb?1:-1;
+  });
 
   var upcomingEvts=allEvts.filter(function(e){return !e.overdue;});
   var overdueEvts=allEvts.filter(function(e){return e.overdue&&!e.match;});
@@ -429,7 +434,8 @@ function EventsTab({companies,newsCache}){
 
   var displayed=view==='upcoming'?upcomingEvts:view==='overdue'?overdueEvts:historyEvts;
   var visible=filter==='all'?displayed:displayed.filter(function(e){return e.coId===filter;});
-  var months=[...new Set(visible.map(function(e){var ps=parseDateSort(e.dateSort);var d=new Date(ps);return isNaN(d.getTime())||ps==='9999-12-31'?(e.dateSort||'TBD'):d.toLocaleDateString('de-DE',{month:'long',year:'numeric'});}))];
+  function evtSortKey(e){var a=parseDateSort(e.date||e.dateSort);var b=parseDateSort(e.dateSort);return a>b?a:b;}
+  var months=[...new Set(visible.map(function(e){var ps=evtSortKey(e);var d=new Date(ps);return isNaN(d.getTime())||ps==='9999-12-31'?(e.date||e.dateSort||'TBD'):d.toLocaleDateString('de-DE',{month:'long',year:'numeric'});}))];
 
   var aIcon=function(a){return a==='gruen'?'🟢':a==='gelb'?'🟡':'🔴';};
   var aColor=function(a){return a==='gruen'?'var(--grn)':a==='gelb'?'var(--yel)':'var(--red)';};
@@ -471,7 +477,7 @@ function EventsTab({companies,newsCache}){
       <button className="btn btn-pri" onClick={launchAllOverdueSearch}>Suche News fuer alle {overdueEvts.length} Overdue Events ↗</button>
     </div>}
     {visible.length===0?<div className="empty">Keine Events in dieser Ansicht.</div>:months.map(function(g){
-      var items=visible.filter(function(e){var ps=parseDateSort(e.dateSort);var d=new Date(ps);return(isNaN(d.getTime())||ps==='9999-12-31'?(e.dateSort||'TBD'):d.toLocaleDateString('de-DE',{month:'long',year:'numeric'}))===g;});
+      var items=visible.filter(function(e){var ps=evtSortKey(e);var d=new Date(ps);return(isNaN(d.getTime())||ps==='9999-12-31'?(e.date||e.dateSort||'TBD'):d.toLocaleDateString('de-DE',{month:'long',year:'numeric'}))===g;});
       if(!items.length) return null;
       var icon=view==='overdue'?'⏰':view==='history'?'✓':'📅';
       return <div key={g}>
