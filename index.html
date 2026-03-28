@@ -556,18 +556,26 @@ function EventsTab({companies,newsCache}){
     // New format: per eventId
     var m=newsCache.find(function(n){return n.ticker===co.ticker&&n.eventId===ev.id;});
     if(m) return m;
-    // Legacy fallback: attach to the highest-priority event for this ticker
+    // Legacy fallback: attach to most overdue event first, then upcoming, by priority
     var legacy=newsCache.find(function(n){return n.ticker===co.ticker&&!n.eventId;});
     if(!legacy) return null;
-    // Find the best event to attach to: first high priority, else first by dateSort
+    var today2=new Date(); today2.setHours(0,0,0,0);
     var evts=(co.events||[]).filter(function(e){return e.title&&e.dateSort;});
-    evts.sort(function(a,b){
+    // Split overdue vs upcoming
+    var overdueE=evts.filter(function(e){return new Date(e.dateSort)<today2;});
+    var upcomingE=evts.filter(function(e){return new Date(e.dateSort)>=today2;});
+    // Sort overdue: most recent first (least overdue = most relevant)
+    overdueE.sort(function(a,b){return a.dateSort>b.dateSort?-1:1;});
+    // Sort upcoming: soonest first, by priority
+    upcomingE.sort(function(a,b){
       var pa={high:0,med:1,blue:2,low:3}[a.priority]||1;
       var pb={high:0,med:1,blue:2,low:3}[b.priority]||1;
       if(pa!==pb) return pa-pb;
       return a.dateSort>b.dateSort?1:-1;
     });
-    return (evts[0]&&evts[0].id===ev.id)?legacy:null;
+    // Prefer overdue events — news likely refers to them
+    var best=(overdueE[0]||upcomingE[0]);
+    return (best&&best.id===ev.id)?legacy:null;
   }
 
   var allEvts=companies.flatMap(function(co){
@@ -701,7 +709,16 @@ function NewsTab({companies,newsCache:newsCacheProp,onNewsUpdate}){
   function launchUpdate(){
     const tickers=companies.map(c=>c.ticker).filter(Boolean).sort().join(', ');
     const deployNote='\n\nAusgabe-Format (zwingend): Gib das Ergebnis ausschliesslich als einen einzigen JSON-Block aus, exakt in diesem Format:\n\n```json\n[\n  {\n    "ticker": "MU",\n    "ampel": "gruen",\n    "headline": "Ein Satz Zusammenfassung",\n    "news": [\n      {"title": "Titel der News", "date": "22.03.2026", "url": "https://..."},\n      {"title": "Weiterer Artikel", "date": "20.03.2026", "url": "https://..."}\n    ],\n    "searchedAt": "2026-03-28"\n  }\n]\n```\n\nDer JSON-Block wird direkt in das Paste & Deploy Textfeld der Portfolio-App kopiert. Daher: kein JSX Artifact, kein Deploy-Button, kein erklaerende Text nach dem JSON-Block — nur der reine JSON-Block.';
-    const prompt='News Update fuer alle '+companies.length+' Portfolio-Aktien ('+new Date().toLocaleDateString('de-DE')+'):\n\n'+tickers+'\n\nBitte fuer jeden Ticker die wichtigsten News der letzten 7 Tage via Web-Recherche suchen und mit den anstehenden Investment-Events abgleichen. Ampel-Bewertung gruen/gelb/rot pro Aktie.'+deployNote;
+    // Build list of overdue + upcoming events per ticker for prompt context
+    const eventContext=companies.map(function(co){
+      var today=new Date(); today.setHours(0,0,0,0);
+      var evts=(co.events||[]).filter(function(e){return e.title&&e.dateSort;});
+      var overdue=evts.filter(function(e){return new Date(e.dateSort)<today;}).map(function(e){return '  [OVERDUE] '+e.title+' ('+e.date+')';});
+      var upcoming=evts.filter(function(e){return new Date(e.dateSort)>=today;}).slice(0,2).map(function(e){return '  [UPCOMING] '+e.title+' ('+e.date+')';});
+      var all=overdue.concat(upcoming);
+      return all.length?co.ticker+':\n'+all.join('\n'):'';
+    }).filter(Boolean).join('\n');
+    const prompt='News Update fuer alle '+companies.length+' Portfolio-Aktien ('+new Date().toLocaleDateString('de-DE')+'):\n\nTicker: '+tickers+'\n\nAnstehende & ueberfaellige Events (Prioritaet fuer News-Recherche):\n'+eventContext+'\n\nAnweisung:\n1. Fuer jeden Ticker: Pruefe zuerst ob die markierten Events (OVERDUE/UPCOMING) eingetreten sind oder neue relevante Informationen vorliegen. Priorisiere News mit direktem Bezug zu diesen Events.\n2. Falls keine event-spezifischen News gefunden: Fasse die wichtigsten allgemeinen News der letzten 7 Tage zusammen.\n3. Ampel-Bewertung: gruen=positiv fuer Investment-These, gelb=neutral/gemischt, rot=Risiko oder negative Entwicklung.'+deployNote;
     window.open('https://claude.ai/new?q='+encodeURIComponent(prompt),'_blank');
   }
 
