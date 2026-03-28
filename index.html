@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -699,7 +700,7 @@ function NewsTab({companies,newsCache:newsCacheProp}){
 
   function launchUpdate(){
     const tickers=companies.map(c=>c.ticker).filter(Boolean).sort().join(', ');
-    const deployNote='\n\nWICHTIG - Output Format: Gib am Ende ein JSX React Artifact aus mit einem Deploy-Button der per fetch() PUT die newsCache-Daten direkt in JSONBin schreibt (ID=69b68c14aa77b81da9e78b7e, Key=$2a$10$ehBtWQSMp.KI0cqlW569/OT9CjP9tSioF3M3edlZXSC1XiV3vI7Z2). Der Button soll: 1) GET JSONBin um companies[] zu laden, 2) PUT mit {companies, newsCache, newsCacheUpdatedAt} schreiben. Format newsCache: [{ticker, ampel(gruen/gelb/rot), headline, eventMatch, news:[{title,url}]}]. KEIN curl-Befehl, KEIN JSON-Download - NUR das JSX Artifact mit Button.';
+    const deployNote='\n\nAusgabe-Format (zwingend): Gib das Ergebnis ausschliesslich als einen einzigen JSON-Block aus, exakt in diesem Format:\n\n```json\n[\n  {\n    "ticker": "MU",\n    "ampel": "gruen",\n    "headline": "Ein Satz Zusammenfassung",\n    "news": [\n      {"title": "Titel der News", "date": "22.03.2026", "url": "https://..."},\n      {"title": "Weiterer Artikel", "date": "20.03.2026", "url": "https://..."}\n    ],\n    "searchedAt": "2026-03-28"\n  }\n]\n```\n\nDer JSON-Block wird direkt in das Paste & Deploy Textfeld der Portfolio-App kopiert. Daher: kein JSX Artifact, kein Deploy-Button, kein erklaerende Text nach dem JSON-Block — nur der reine JSON-Block.';
     const prompt='News Update fuer alle '+companies.length+' Portfolio-Aktien ('+new Date().toLocaleDateString('de-DE')+'):\n\n'+tickers+'\n\nBitte fuer jeden Ticker die wichtigsten News der letzten 7 Tage via Web-Recherche suchen und mit den anstehenden Investment-Events abgleichen. Ampel-Bewertung gruen/gelb/rot pro Aktie.'+deployNote;
     window.open('https://claude.ai/new?q='+encodeURIComponent(prompt),'_blank');
   }
