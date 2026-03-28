@@ -677,7 +677,7 @@ function EventsTab({companies,newsCache}){
 }
 
 
-function NewsTab({companies,newsCache:newsCacheProp}){
+function NewsTab({companies,newsCache:newsCacheProp,onNewsUpdate}){
   const [status,setStatus]=useState('loading');
   const [cache,setCache]=useState([]);
   const [timestamp,setTimestamp]=useState('');
@@ -737,9 +737,12 @@ function NewsTab({companies,newsCache:newsCacheProp}){
       const r=await fetch('/api/deploy-news',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({newsCache:nc})});
       const d=await r.json();
       if(!d.ok) throw new Error(d.error||'Unbekannter Fehler');
-      setDeployMsg('✅ '+d.count+' Einträge deployed — Seite neu laden');
+      setDeployMsg('✅ '+d.count+' Einträge deployed');
       setPasteVal(''); setPasteMode(false);
-      loadCache();
+      setCache(nc);
+      setTimestamp(new Date().toISOString());
+      setStatus('done');
+      if(onNewsUpdate) onNewsUpdate(nc);
     }catch(e){setDeployMsg('❌ '+e.message);}
     setDeploying(false);
   }
@@ -990,7 +993,7 @@ function App(){
       {tab==='overview'&&<OverviewTab companies={cos}/>}
       {tab==='feed'&&<FeedTab companies={cos} newsCache={newsCache}/>}
       {tab==='events'&&<EventsTab companies={cos} newsCache={newsCache}/>}
-      {tab==='news'&&<NewsTab companies={cos} newsCache={newsCache}/>}
+      {tab==='news'&&<NewsTab companies={cos} newsCache={newsCache} onNewsUpdate={function(nc){setNewsCache(nc);setNewsCacheUpdatedAt(new Date().toISOString());}}/>}
       {tab==='manage'&&<ManageTab companies={cos} onAdd={()=>setModal(blankCo())} onEdit={c=>setModal(JSON.parse(JSON.stringify(c)))} onDelete={del} onReset={reset} onSync={syncFromJSONBin} onPush={pushToJSONBin} syncing={syncing}/>}
       {tab==='make'&&<MakeTab/>}
     </div>
