@@ -173,6 +173,11 @@ const {useState,useEffect}=React;
 const SK='aktienanalyse-canvas-v22';
 const JSONBIN_ID='69b68c14aa77b81da9e78b7e';
 const JSONBIN_KEY='$2a$10$ehBtWQSMp.KI0cqlW569/OT9CjP9tSioF3M3edlZXSC1XiV3vI7Z2';
+const STOCK_ANALYSES_BASE='https://v0-stock-analyses.vercel.app';
+function getAnalyseUrl(co){
+  if(!co||!co.ticker)return '';
+  return STOCK_ANALYSES_BASE+'/'+co.ticker;
+}
 
 const SEED=[
   {id:'xiaomi',ticker:'1810.HK',name:'Xiaomi Corporation',exchange:'HKEX',sector:'Tech/Consumer',price:'HK$ 22.60',priceDate:'03.03.2026',w52:'11.94-35.90',scores:{gm:8,bg:7,qu:8,wa:9,bw:8,cf:8,ri:7,ta:9},rating:'KAUFEN',zielkurs:'HK$ 35-42',upside:'+55-87%',downside:'-15%',rr:'1:4',horizont:'2-4 J.',badges:['EV','AIoT','Smartphones'],chatUrl:'https://claude.ai/chat/e4c73bdc-63c3-4084-b41e-43ba145eb200',analyseUrl:'https://xiaomi829183333.netlify.app/',events:[{id:'e1',title:'FY2025 Jahresergebnisse',date:'Mitte März 2026',dateSort:'2026-03-15',priority:'high',desc:'Erstes vollständiges Jahresbild mit EV-Umsatzanteil.',wd:[{t:'up',text:'EV-Marge >= 15% -> nachkaufen.'},{t:'down',text:'EV-Marge < 8% -> 30-50% reduzieren.'}]},{id:'e2',title:'SU7 Ultra Hochlauf',date:'Q2 2026',dateSort:'2026-05-01',priority:'med',desc:'SU7 Ultra Listenpreis RMB 529.900.',wd:[{t:'up',text:'Bestellwoche >= 15.000 -> aufstocken.'},{t:'down',text:'< 5.000 Bestellungen -> trimmen.'}]},{id:'e3',title:'EMEA-Expansion & AIoT',date:'H2 2026',dateSort:'2026-07-01',priority:'blue',desc:'Int. Umsatzanteil ~42%; EMEA-ASP Ziel EUR 450-500.',wd:[{t:'up',text:'EMEA-ASP >= EUR 380 -> Zielkurs HK$ 42-50.'},{t:'down',text:'EMEA < 10% Marktanteil -> reduzieren.'}]}]},
@@ -220,7 +225,7 @@ function PortfolioCard({co}){
     <div className="pcard-foot">
       <div className="badges">{co.badges.map((b,i)=><span key={i} className="badge pill-o">{b}</span>)}</div>
       <div className="lnks">
-        {co.analyseUrl&&<a href={co.analyseUrl} target="_blank" rel="noopener" className="lbtn lbtn-a">Analyse</a>}
+        {getAnalyseUrl(co)&&<a href={getAnalyseUrl(co)} target="_blank" rel="noopener" className="lbtn lbtn-a">Analyse</a>}
         {co.chatUrl&&<a href={co.chatUrl} target="_blank" rel="noopener" className="lbtn lbtn-c">Chat</a>}
       </div>
     </div>
@@ -245,7 +250,7 @@ function EventItem({ev,co}){
       {ev.desc&&<div className="tl-desc">{ev.desc}</div>}
       {ev.wd.length>0&&<div className="tl-wd">{ev.wd.map((w,i)=><div key={i} className="wd-row"><span className="wd-ico" style={{color:WC[w.t]}}>{WI[w.t]}</span><span>{w.text}</span></div>)}</div>}
       <div className="tl-lnks">
-        {co.analyseUrl&&<a href={co.analyseUrl} target="_blank" rel="noopener" className="lbtn lbtn-a">Analyse</a>}
+        {getAnalyseUrl(co)&&<a href={getAnalyseUrl(co)} target="_blank" rel="noopener" className="lbtn lbtn-a">Analyse</a>}
         {co.chatUrl&&<a href={co.chatUrl} target="_blank" rel="noopener" className="lbtn lbtn-c">Chat</a>}
       </div>
     </div>
@@ -349,7 +354,7 @@ function OverviewTab({companies}){
               {p1m==null?<span style={{color:'var(--dim)',fontSize:10}}>–</span>:(p1m>=0?'+':'')+p1m.toFixed(1)+'%'}
             </td>
             <td style={{whiteSpace:'nowrap'}}>
-              {c.analyseUrl&&<a href={c.analyseUrl} target="_blank" rel="noopener" className="lbtn lbtn-a" style={{fontSize:10,marginRight:3}}>Analyse</a>}
+              {getAnalyseUrl(c)&&<a href={getAnalyseUrl(c)} target="_blank" rel="noopener" className="lbtn lbtn-a" style={{fontSize:10,marginRight:3}}>Analyse</a>}
               {c.chatUrl&&<a href={c.chatUrl} target="_blank" rel="noopener" className="lbtn lbtn-c" style={{fontSize:10}}>Chat</a>}
             </td>
           </tr>
@@ -691,7 +696,7 @@ function EventsTab({companies,newsCache}){
                 </div>}
                 {view==='overdue'&&e.match&&e.match.searchedAt&&!e.match.news&&<div style={{fontSize:11,color:'var(--dim)',marginTop:6}}>Letzte Suche: {e.match.searchedAt} — keine relevanten News gefunden</div>}
                 <div className="tl-lnks">
-                  {co.analyseUrl&&<a href={co.analyseUrl} target="_blank" rel="noopener" className="lbtn lbtn-a">Analyse</a>}
+                  {getAnalyseUrl(co)&&<a href={getAnalyseUrl(co)} target="_blank" rel="noopener" className="lbtn lbtn-a">Analyse</a>}
                   {co.chatUrl&&<a href={co.chatUrl} target="_blank" rel="noopener" className="lbtn lbtn-c">Chat</a>}
                 </div>
               </div>
@@ -832,7 +837,7 @@ function NewsTab({companies,newsCache:newsCacheProp,onNewsUpdate}){
               </div>)}
             </div>}
             <div style={{display:'flex',gap:6,marginTop:8}}>
-              {co&&co.analyseUrl&&<a href={co.analyseUrl} target="_blank" rel="noopener" className="lbtn lbtn-a" style={{fontSize:10}}>Analyse</a>}
+              {co&&getAnalyseUrl(co)&&<a href={getAnalyseUrl(co)} target="_blank" rel="noopener" className="lbtn lbtn-a" style={{fontSize:10}}>Analyse</a>}
               {co&&co.chatUrl&&<a href={co.chatUrl} target="_blank" rel="noopener" className="lbtn lbtn-c" style={{fontSize:10}}>Chat</a>}
             </div>
           </div>
@@ -913,7 +918,7 @@ function ManageTab({companies,onAdd,onEdit,onDelete,onReset,onSync,onPush,syncin
           <div style={{fontSize:12,color:'var(--mut)'}}>{c.zielkurs} · {c.upside}</div>
         </div>
         <div className="co-btns">
-          {c.analyseUrl&&<a href={c.analyseUrl} target="_blank" rel="noopener" className="lbtn lbtn-a" style={{fontSize:11}}>Analyse</a>}
+          {getAnalyseUrl(c)&&<a href={getAnalyseUrl(c)} target="_blank" rel="noopener" className="lbtn lbtn-a" style={{fontSize:11}}>Analyse</a>}
           {c.chatUrl&&<a href={c.chatUrl} target="_blank" rel="noopener" className="lbtn lbtn-c" style={{fontSize:11}}>Chat</a>}
           <button className="btn" onClick={()=>onEdit(c)}>Edit</button>
           <button className="btn btn-red" onClick={()=>onDelete(c.id)}>X</button>
