@@ -174,6 +174,7 @@ const SK='aktienanalyse-canvas-v22';
 const JSONBIN_ID='69b68c14aa77b81da9e78b7e';
 const JSONBIN_KEY='$2a$10$ehBtWQSMp.KI0cqlW569/OT9CjP9tSioF3M3edlZXSC1XiV3vI7Z2';
 const STOCK_ANALYSES_BASE='https://v0-stock-analyses.vercel.app';
+const GITHUB_INDEX_URL='https://raw.githubusercontent.com/astump-ux/stock-analyses/main/index.json';
 function getAnalyseUrl(co){
   if(!co||!co.ticker)return '';
   return STOCK_ANALYSES_BASE+'/'+co.ticker;
@@ -960,10 +961,13 @@ function App(){
       try{const r=localStorage.getItem(SK);data=r?JSON.parse(r):SEED;}catch(e){data=SEED;}
       setSyncStatus('spin');
       try{
-        const r1=await fetch('https://api.jsonbin.io/v3/b/'+JSONBIN_ID+'/latest',{headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':'false'}});
+        const r1=await fetch(GITHUB_INDEX_URL+'?t='+Date.now());
         if(r1.ok){const d=await r1.json();
           if(d.companies&&d.companies.length>0){data=d.companies;}
-          if(d.newsCache&&Array.isArray(d.newsCache)&&d.newsCache.length>0){setNewsCache(d.newsCache);setNewsCacheUpdatedAt(d.newsCacheUpdatedAt||'');}
+        }
+        const r2=await fetch('https://api.jsonbin.io/v3/b/'+JSONBIN_ID+'/latest',{headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':'false'}});
+        if(r2.ok){const d2=await r2.json();
+          if(d2.newsCache&&Array.isArray(d2.newsCache)&&d2.newsCache.length>0){setNewsCache(d2.newsCache);setNewsCacheUpdatedAt(d2.newsCacheUpdatedAt||'');}
         }
         setSyncStatus('ok');
       }catch(e){setSyncStatus('err');}
@@ -982,11 +986,14 @@ function App(){
   const syncFromJSONBin=async()=>{
     setSyncing(true);
     try{
-      const r1=await fetch('https://api.jsonbin.io/v3/b/'+JSONBIN_ID+'/latest',{headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':'false'}});
-      if(!r1.ok) throw new Error('HTTP '+r1.status);
+      const r1=await fetch(GITHUB_INDEX_URL+'?t='+Date.now());
+      if(!r1.ok) throw new Error('GitHub HTTP '+r1.status);
       const d=await r1.json();
-      if(d.companies&&Array.isArray(d.companies)){setCos(d.companies);localStorage.setItem(SK,JSON.stringify(d.companies));setToast({msg:d.companies.length+' Analysen geladen'});setSyncStatus('ok');}
-      if(d.newsCache&&Array.isArray(d.newsCache)&&d.newsCache.length>0){setNewsCache(d.newsCache);setNewsCacheUpdatedAt(d.newsCacheUpdatedAt||'');}
+      if(d.companies&&Array.isArray(d.companies)){setCos(d.companies);localStorage.setItem(SK,JSON.stringify(d.companies));setToast({msg:d.companies.length+' Analysen geladen (GitHub)'});setSyncStatus('ok');}
+      const r2=await fetch('https://api.jsonbin.io/v3/b/'+JSONBIN_ID+'/latest',{headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':'false'}});
+      if(r2.ok){const d2=await r2.json();
+        if(d2.newsCache&&Array.isArray(d2.newsCache)&&d2.newsCache.length>0){setNewsCache(d2.newsCache);setNewsCacheUpdatedAt(d2.newsCacheUpdatedAt||'');}
+      }
     }catch(e){setToast({msg:'Sync fehlgeschlagen: '+e.message,err:true});setSyncStatus('err');}
     setSyncing(false);
   };
