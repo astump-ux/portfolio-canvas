@@ -412,16 +412,35 @@ function FeedTab({companies,newsCache}){
     // Classify events
     var upcomingEvts=evts.filter(function(e){return new Date(parseDateSort(e.dateSort))>=today;});
     var overdueEvts=evts.filter(function(e){return new Date(parseDateSort(e.dateSort))<today;});
-    var news=newsCache?newsCache.find(function(n){return n.ticker===co.ticker;}):null;
+    // Match news using same logic as EventsTab getMatch
+    var news=null;
+    if(newsCache){
+      // Try eventId match first against overdue then upcoming events
+      var allEvtsForMatch=overdueEvts.slice().reverse().concat(upcomingEvts);
+      for(var ei=0;ei<allEvtsForMatch.length;ei++){
+        var em=newsCache.find(function(n){return n.ticker===co.ticker&&n.eventId===allEvtsForMatch[ei].id;});
+        if(em){news=em;break;}
+      }
+      // Legacy fallback: prefer most recent overdue event
+      if(!news){
+        var legacy=newsCache.find(function(n){return n.ticker===co.ticker&&!n.eventId;});
+        if(legacy) news=legacy;
+      }
+    }
     var hasHistory=!!news;
     // Pick event based on viewMode
     var nextEvt=null;
     if(viewMode==='upcoming') nextEvt=upcomingEvts[0]||null;
-    else if(viewMode==='overdue') nextEvt=overdueEvts[overdueEvts.length-1]||null;
+    else if(viewMode==='overdue'){
+      // Show most recently overdue event (least overdue first)
+      overdueEvts.sort(function(a,b){return a.dateSort>b.dateSort?-1:1;});
+      nextEvt=overdueEvts[0]||null;
+    }
     else nextEvt=upcomingEvts[0]||evts[0]||null;
-    // Filter by viewMode
+    // Filter by viewMode: overdue = has overdue events AND no news match
+    // history = has news match
     if(viewMode==='upcoming'&&!upcomingEvts.length) return null;
-    if(viewMode==='overdue'&&!overdueEvts.length) return null;
+    if(viewMode==='overdue'&&(!overdueEvts.length||hasHistory)) return null;
     if(viewMode==='history'&&!hasHistory) return null;
     return {co,nextEvt,news,upcomingCount:upcomingEvts.length,overdueCount:overdueEvts.length};
   }).filter(function(r){
@@ -1000,8 +1019,7 @@ function App(){
     </div>
     <div className="tabs">
       <button className={'tab'+(tab==='overview'?' active':'')} onClick={()=>setTab('overview')}>Übersicht</button>
-      <button className={'tab'+(tab==='feed'?' active':'')} onClick={()=>setTab('feed')}>Portfolio Feed</button>
-      <button className={'tab'+(tab==='events'?' active':'')} onClick={()=>setTab('events')}>Upcoming Events</button>
+      <button className={'tab'+(tab==='feed'?' active':'')} onClick={()=>setTab('feed')}>Events</button>
       <button className={'tab'+(tab==='news'?' active':'')} onClick={()=>setTab('news')}>News Scan</button>
       <button className={'tab'+(tab==='manage'?' active':'')} onClick={()=>setTab('manage')}>Verwalten</button>
       <button className={'tab'+(tab==='make'?' active':'')} onClick={()=>setTab('make')}>Make.com</button>
@@ -1009,7 +1027,6 @@ function App(){
     <div className="main">
       {tab==='overview'&&<OverviewTab companies={cos}/>}
       {tab==='feed'&&<FeedTab companies={cos} newsCache={newsCache}/>}
-      {tab==='events'&&<EventsTab companies={cos} newsCache={newsCache}/>}
       {tab==='news'&&<NewsTab companies={cos} newsCache={newsCache} onNewsUpdate={function(nc){setNewsCache(nc);setNewsCacheUpdatedAt(new Date().toISOString());}}/>}
       {tab==='manage'&&<ManageTab companies={cos} onAdd={()=>setModal(blankCo())} onEdit={c=>setModal(JSON.parse(JSON.stringify(c)))} onDelete={del} onReset={reset} onSync={syncFromJSONBin} onPush={pushToJSONBin} syncing={syncing}/>}
       {tab==='make'&&<MakeTab/>}
