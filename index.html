@@ -324,8 +324,9 @@ function OverviewTab({companies}){
           <th>Preis</th>
           <SortTh label="Upside" col="upside" sort={sort} setSort={setSort}/>
           <SortTh label="Downside" col="downside" sort={sort} setSort={setSort}/>
-          <SortTh label="Datum" col="priceDate" sort={sort} setSort={setSort}/>
+          <SortTh label="Analyse" col="priceDate" sort={sort} setSort={setSort}/>
           <th>Aktuell</th>
+          <th>Δ</th>
           <SortTh label="7T" col="perf7d" sort={sort} setSort={setSort}/>
           <SortTh label="1M" col="perf1m" sort={sort} setSort={setSort}/>
           <th>Links</th>
@@ -336,10 +337,14 @@ function OverviewTab({companies}){
           const p1m=c.perf1m!=null?c.perf1m:null;
           const hp=histPrices[c.ticker];
           const priceEl=histLoading
-            ?<span style={{color:'var(--dim)',fontSize:10}}>…</span>
+            ?<span style={{color:'var(--dim)',fontSize:12}}>…</span>
             :hp
               ?<span style={{fontWeight:600,fontSize:12}}>{hp}</span>
-              :<span style={{color:'var(--mut)',fontSize:11}}>{c.price||'–'}</span>;
+              :<span style={{fontWeight:600,fontSize:12,color:'var(--mut)'}}>{c.price||'–'}</span>;
+          const parseNum=function(s){if(!s) return null; var m=String(s).replace(/,/g,'.').match(/[\d]+(?:\.\d+)?/); return m?parseFloat(m[0]):null;};
+          const hpNum=hp?parseNum(hp):null;
+          const cpNum=parseNum(c.currentPrice);
+          const delta=(hpNum&&cpNum)?Math.round(((cpNum-hpNum)/hpNum)*1000)/10:null;
           return <tr key={c.id}>
             <td><strong>{c.name}</strong><br/><span style={{color:'var(--dim)',fontSize:10}}>{c.ticker} · {c.exchange}</span></td>
             <td><span style={{color:'var(--pri)',fontWeight:700}}>{sc}</span></td>
@@ -347,8 +352,11 @@ function OverviewTab({companies}){
             <td>{priceEl}</td>
             <td style={{color:'var(--grn)',fontWeight:600,fontSize:12}}>{c.upside}</td>
             <td style={{color:'var(--red)',fontWeight:600,fontSize:12}}>{c.downside}</td>
-            <td style={{fontSize:11,color:'var(--mut)'}}>{c.priceDate||'–'}</td>
-            <td style={{fontSize:12,color:'var(--txt)',fontWeight:600}}>{c.currentPrice||<span style={{color:'var(--dim)',fontSize:10}}>–</span>}</td>
+            <td style={{fontSize:12,fontWeight:600,color:'var(--mut)'}}>{c.priceDate||'–'}</td>
+            <td style={{fontSize:12,fontWeight:600}}>{c.currentPrice||<span style={{color:'var(--dim)',fontSize:12}}>–</span>}</td>
+            <td style={{fontSize:12,fontWeight:600,color:delta==null?'var(--dim)':delta>=0?'var(--grn)':'var(--red)'}}>
+              {delta==null?'–':(delta>=0?'+':'')+delta.toFixed(1)+'%'}
+            </td>
             <td style={{fontWeight:600,fontSize:12,color:p7==null?'var(--dim)':p7>=0?'var(--grn)':'var(--red)'}}>
               {p7==null?<span style={{color:'var(--dim)',fontSize:10}}>–</span>:(p7>=0?'+':'')+p7.toFixed(1)+'%'}
             </td>
