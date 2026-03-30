@@ -305,9 +305,6 @@ function OverviewTab({companies}){
       <div className="kpi"><div className="kpi-l">Analysen</div><div className="kpi-v" style={{color:'var(--pri)'}}>{total}</div><div className="kpi-s">Canvas v2.2</div></div>
       <div className="kpi"><div className="kpi-l">Ø Score</div><div className="kpi-v" style={{color:'var(--pri)'}}>{avgSc}/10</div></div>
       <div className="kpi"><div className="kpi-l">Ratings</div><div className="kpi-v" style={{color:'var(--grn)'}}>{buys}x Kaufen</div><div className="kpi-s">{companies.filter(c=>c.rating==='HALTEN').length}x Halten · {companies.filter(c=>c.rating==='VERKAUFEN').length}x Verkaufen</div></div>
-      <div className="kpi"><div className="kpi-l">Nächster Event</div><div className="kpi-v" style={{color:'var(--blu)',fontSize:14}}>{nextEvt?nextEvt.date:'–'}</div><div className="kpi-s">{nextCo?nextCo.ticker:''}{nextEvt?' · '+nextEvt.title.slice(0,18)+'…':''}</div></div>
-      <div className="kpi"><div className="kpi-l">Technisch bullisch</div><div className="kpi-v" style={{color:'var(--yel)'}}>{companies.filter(c=>c.scores.ta>=7).length}x</div><div className="kpi-s">{companies.filter(c=>c.scores.ta<5).length}x bärisch</div></div>
-      <div className="kpi"><div className="kpi-l">Events</div><div className="kpi-v" style={{color:'var(--pri)'}}>{allEvts.length}</div><div className="kpi-s">Upcoming</div></div>
     </div>
     <div className="sec" style={{marginBottom:24}}>
       <div className="sec-hdr">Vergleichsübersicht</div>
@@ -487,9 +484,9 @@ function FeedTab({companies,newsCache}){
           </button>;
         })}
         <div style={{width:1,height:20,background:'var(--brd)',margin:'0 4px'}}/>
-        {['event','news','ticker'].map(function(s){
+        {['event','ticker'].map(function(s){
           return <button key={s} className={'chip'+(sortBy===s?' active':'')} onClick={function(){setSortBy(s);}}>
-            {s==='event'?'📅 Event':s==='news'?'📰 News':'🔤 A-Z'}
+            {s==='event'?'📅 Event':'🔤 A-Z'}
           </button>;
         })}
         <span style={{marginLeft:'auto',fontSize:12,color:'var(--mut)',fontWeight:600}}>{rows.length} Aktien</span>
@@ -604,7 +601,7 @@ function EventsTab({companies,newsCache}){
   });
 
   var upcomingEvts=allEvts.filter(function(e){return !e.overdue;});
-  var overdueEvts=allEvts.filter(function(e){return e.overdue&&!e.match;});
+  var overdueEvts=allEvts.filter(function(e){var co=companies.find(function(c){return c.id===e.coId;});return e.overdue&&!e.match&&!!co;});
   var historyEvts=allEvts.filter(function(e){return !!e.match;});
 
   var displayed=view==='upcoming'?upcomingEvts:view==='overdue'?overdueEvts:historyEvts;
@@ -735,7 +732,7 @@ function NewsTab({companies,newsCache:newsCacheProp,onNewsUpdate}){
     window.open('https://claude.ai/new?q='+encodeURIComponent(prompt),'_blank');
   }
 
-  const aIcon=a=>a==='gruen'?'🟢':a==='gelb'?'🟡':'🔴\n\nWICHTIG: Am Ende den kompletten newsCache als JSON-Block ausgeben (```json [...] ```) damit er in die Portfolio-App kopiert werden kann. KEIN Artifact, KEIN Download.';
+  const aIcon=a=>a==='gruen'?'🟢':a==='gelb'?'🟡':'🔴';
   const aLabel=a=>a==='gruen'?'Positiv':a==='gelb'?'Neutral':'Risiko';
   const aColor=a=>a==='gruen'?'var(--grn)':a==='gelb'?'var(--yel)':'var(--red)';
 
