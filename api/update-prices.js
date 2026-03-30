@@ -31,6 +31,40 @@ const STOOQ_US_MAP = {
 
 function sleep(ms) { return new Promise(function(r){ setTimeout(r, ms); }); }
 
+// Combined map: ticker → Stooq symbol (US uses .us suffix, intl uses exchange suffix)
+const STOOQ_ALL_MAP = Object.assign({}, STOOQ_US_MAP, STOOQ_MAP);
+
+function parseDDMMYYYY(s) {
+  if (!s) return null;
+  var m = s.match(/^(\d{1,2})\.(\d{2})\.(\d{4})$/);
+  if (!m) return null;
+  return m[3] + m[2].padStart(2,'0') + m[1].padStart(2,'0'); // YYYYMMDD
+}
+
+async function fetchStooqAtDate(symbol, targetYYYYMMDD) {
+  var target = new Date(
+    parseInt(targetYYYYMMDD.slice(0,4)),
+    parseInt(targetYYYYMMDD.slice(4,6)) - 1,
+    parseInt(targetYYYYMMDD.slice(6,8))
+  );
+  var d1Date = new Date(target.getTime() - 5 * 86400000);
+  var d2Date = new Date(target.getTime() + 2 * 86400000);
+  var d1 = d1Date.toISOString().slice(0,10).replace(/-/g,'');
+  var d2 = d2Date.toISOString().slice(0,10).replace(/-/g,'');
+  var url = 'https://stooq.com/q/d/l/?s=' + symbol + '&d1=' + d1 + '&d2=' + d2 + '&i=d';
+  var res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+  var csv = await res.text();
+  var lines = csv.trim().split('\n').filter(function(l){ return l && !l.startsWith('Date') && l.indexOf(',') !== -1; });
+  if (!lines.length) return null;
+  var entries = lines.map(function(line){
+    var cols = line.split(',');
+    return { date: (cols[0]||'').replace(/-/g,''), close: parseFloat(cols[4]) };
+  }).filter(function(e){ return !isNaN(e.close) && e.date <= targetYYYYMMDD; });
+  if (!entries.length) return null;
+  entries.sort(function(a,b){ return b.date > a.date ? 1 : -1; });
+  return String(Math.round(entries[0].close * 100) / 100);
+}
+
 async function fetchFinnhub(sym, key) {
   var qRes = await fetch('https://finnhub.io/api/v1/quote?symbol=' + encodeURIComponent(sym) + '&token=' + key);
   var mRes = await fetch('https://finnhub.io/api/v1/stock/metric?symbol=' + encodeURIComponent(sym) + '&metric=all&token=' + key);
@@ -146,6 +180,22 @@ module.exports = async function handler(req, res) {
       if (k < usPerf1mTickers.length - 1) await sleep(300);
     }
 
+    // 2d. Fetch analysisPrice (once) for companies missing it, using Stooq at priceDate
+    var needsAnalysisPrice = companies.filter(function(c){
+      return !c.analysisPrice && c.priceDate && STOOQ_ALL_MAP[c.ticker];
+    });
+    var analysisPriceMap = {};
+    for (var ap = 0; ap < needsAnalysisPrice.length; ap++) {
+      var apItem = needsAnalysisPrice[ap];
+      var yyyymmdd = parseDDMMYYYY(apItem.priceDate);
+      if (!yyyymmdd) continue;
+      try {
+        var apPrice = await fetchStooqAtDate(STOOQ_ALL_MAP[apItem.ticker], yyyymmdd);
+        if (apPrice) analysisPriceMap[apItem.ticker] = apPrice;
+      } catch(e) {}
+      if (ap < needsAnalysisPrice.length - 1) await sleep(300);
+    }
+
     // 3. Update companies
     var updated = 0;
     var updatedCompanies = companies.map(function(c) {
@@ -157,6 +207,7 @@ module.exports = async function handler(req, res) {
         perf7d: d.perf7d,
         perf1m: d.perf1m != null ? d.perf1m : (c.perf1m || null),
         priceUpdatedAt: new Date().toISOString(),
+        analysisPrice: c.analysisPrice || analysisPriceMap[c.ticker] || null,
       });
     });
 

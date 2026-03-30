@@ -268,21 +268,8 @@ function SortTh({label,col,sort,setSort}){
 
 function OverviewTab({companies}){
   const [sort,setSort]=useState({col:'score',dir:'desc'});
-  const [histPrices,setHistPrices]=useState({});
-  const [histLoading,setHistLoading]=useState(false);
   const total=companies.length;
   const avgSc=total?Math.round(companies.reduce((a,c)=>a+avg(c.scores),0)/total*10)/10:0;
-  const depKey=companies.map(function(c){return c.ticker+c.priceDate;}).join(',');
-  useEffect(function(){
-    if(!companies.length) return;
-    setHistLoading(true);
-    var items=companies.filter(function(c){return c.ticker&&c.priceDate;}).map(function(c){return {ticker:c.ticker,date:c.priceDate};});
-    if(!items.length){setHistLoading(false);return;}
-    fetch('/api/historical-price?data='+encodeURIComponent(JSON.stringify(items)))
-      .then(function(r){return r.json();})
-      .then(function(d){setHistPrices(d||{});setHistLoading(false);})
-      .catch(function(){setHistLoading(false);});
-  },[depKey]);
   if(!total) return <div className="empty">Noch keine Analysen vorhanden.</div>;
 
   const sorted=[...companies].sort((a,b)=>{
@@ -315,7 +302,7 @@ function OverviewTab({companies}){
       <div className="kpi"><div className="kpi-l">Ø Score</div><div className="kpi-v" style={{color:'var(--pri)'}}>{avgSc}/10</div></div>
     </div>
     <div className="sec" style={{marginBottom:24}}>
-      <div className="sec-hdr">Vergleichsübersicht{histLoading&&<span style={{fontSize:11,color:'var(--mut)',fontWeight:400,marginLeft:10}}>Preise werden geladen…</span>}</div>
+      <div className="sec-hdr">Vergleichsübersicht</div>
       <div className="tbl-wrap"><table>
         <thead><tr>
           <SortTh label="Unternehmen" col="name" sort={sort} setSort={setSort}/>
@@ -335,25 +322,20 @@ function OverviewTab({companies}){
           const sc=avg(c.scores);
           const p7=c.perf7d!=null?c.perf7d:null;
           const p1m=c.perf1m!=null?c.perf1m:null;
-          const hp=histPrices[c.ticker];
-          const priceEl=histLoading
-            ?<span style={{color:'var(--dim)',fontSize:12}}>…</span>
-            :hp
-              ?<span style={{fontWeight:600,fontSize:12}}>{hp}</span>
-              :<span style={{fontWeight:600,fontSize:12,color:'var(--mut)'}}>{c.price||'–'}</span>;
           const parseNum=function(s){if(!s) return null; var m=String(s).replace(/,/g,'.').match(/[\d]+(?:\.\d+)?/); return m?parseFloat(m[0]):null;};
-          const hpNum=hp?parseNum(hp):null;
+          const apNum=parseNum(c.analysisPrice);
           const cpNum=parseNum(c.currentPrice);
-          const delta=(hpNum&&cpNum)?Math.round(((cpNum-hpNum)/hpNum)*1000)/10:null;
+          const delta=(apNum&&cpNum)?Math.round(((cpNum-apNum)/apNum)*1000)/10:null;
+          const priceDisplay=c.analysisPrice||<span style={{color:'var(--mut)'}}>–</span>;
           return <tr key={c.id}>
             <td><strong>{c.name}</strong><br/><span style={{color:'var(--dim)',fontSize:10}}>{c.ticker} · {c.exchange}</span></td>
             <td><span style={{color:'var(--pri)',fontWeight:700}}>{sc}</span></td>
             <td><span className={BGC[c.rating]||'badge'} style={{fontSize:11}}>{c.rating}</span></td>
-            <td>{priceEl}</td>
+            <td style={{fontSize:12,fontWeight:600}}>{priceDisplay}</td>
             <td style={{color:'var(--grn)',fontWeight:600,fontSize:12}}>{c.upside}</td>
             <td style={{color:'var(--red)',fontWeight:600,fontSize:12}}>{c.downside}</td>
             <td style={{fontSize:12,fontWeight:600,color:'var(--mut)'}}>{c.priceDate||'–'}</td>
-            <td style={{fontSize:12,fontWeight:600}}>{c.currentPrice||<span style={{color:'var(--dim)',fontSize:12}}>–</span>}</td>
+            <td style={{fontSize:12,fontWeight:600}}>{c.currentPrice||<span style={{color:'var(--dim)'}}>–</span>}</td>
             <td style={{fontSize:12,fontWeight:600,color:delta==null?'var(--dim)':delta>=0?'var(--grn)':'var(--red)'}}>
               {delta==null?'–':(delta>=0?'+':'')+delta.toFixed(1)+'%'}
             </td>
