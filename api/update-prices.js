@@ -1,6 +1,7 @@
 // /api/update-prices.js - Finnhub (US) + Stooq (International) - batched
+// analysisPrice extracted for free from already-fetched Stooq CSVs (60-day window)
 
-const JSONBIN_ID = '69b68c14aa77b81da9e78b7e';
+const JSONBIN_ID  = '69b68c14aa77b81da9e78b7e';
 const JSONBIN_KEY = '$2a$10$ehBtWQSMp.KI0cqlW569/OT9CjP9tSioF3M3edlZXSC1XiV3vI7Z2';
 
 const FINNHUB_MAP = {
@@ -13,13 +14,11 @@ const FINNHUB_MAP = {
 };
 
 const STOOQ_MAP = {
-  // International
   'MUV2':'muv2.de','SREN':'sr9.de','TEG':'teg.de','DHL':'dhl.de',
   'WISE':'wise.uk','ORSTED':'d2g.de',
   'XIAOMI':'1810.hk','BYD':'1211.hk','HORIZON':'9660.hk','GEEKPLUS':'2590.hk',
 };
 
-// US tickers on Stooq for 1M perf (Stooq uses .us suffix)
 const STOOQ_US_MAP = {
   'DDOG':'ddog.us','TEAM':'team.us','WDAY':'wday.us','NOW':'now.us','CRM':'crm.us',
   'HUBS':'hubs.us','SNOW':'snow.us','PANW':'panw.us','GOOGL':'googl.us','OKTA':'okta.us',
@@ -35,43 +34,15 @@ function parseDDMMYYYY(s) {
   if (!s) return null;
   var m = s.match(/^(\d{1,2})\.(\d{2})\.(\d{4})$/);
   if (!m) return null;
-  return { y: parseInt(m[3]), mo: parseInt(m[2])-1, d: parseInt(m[1]) };
+  return m[3] + m[2].padStart(2,'0') + m[1].padStart(2,'0');
 }
 
-async function fetchFinnhubAtDate(sym, parsedDate, key) {
-  // Finnhub candles: fetch 7-day window around analysis date
-  var from = new Date(parsedDate.y, parsedDate.mo, parsedDate.d - 4);
-  var to   = new Date(parsedDate.y, parsedDate.mo, parsedDate.d + 1);
-  var url = 'https://finnhub.io/api/v1/stock/candle?symbol=' + encodeURIComponent(sym)
-    + '&resolution=D&from=' + Math.floor(from.getTime()/1000)
-    + '&to=' + Math.floor(to.getTime()/1000)
-    + '&token=' + key;
-  var res = await fetch(url);
-  var data = await res.json();
-  if (!data || data.s === 'no_data' || !data.c || !data.c.length) return null;
-  // Return last closing price in window (closest to target date)
-  var last = data.c[data.c.length - 1];
-  return last ? String(Math.round(last * 100) / 100) : null;
-}
-
-async function fetchStooqAtDate(symbol, parsedDate) {
-  var target = new Date(parsedDate.y, parsedDate.mo, parsedDate.d);
-  var d1Date = new Date(target.getTime() - 5 * 86400000);
-  var d2Date = new Date(target.getTime() + 2 * 86400000);
-  var fmt = function(d){ return d.toISOString().slice(0,10).replace(/-/g,''); };
-  var url = 'https://stooq.com/q/d/l/?s=' + symbol + '&d1=' + fmt(d1Date) + '&d2=' + fmt(d2Date) + '&i=d';
-  var res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-  var csv = await res.text();
-  var targetStr = String(parsedDate.y) + String(parsedDate.mo+1).padStart(2,'0') + String(parsedDate.d).padStart(2,'0');
-  var lines = csv.trim().split('\n').filter(function(l){ return l && !l.startsWith('Date') && l.indexOf(',') !== -1; });
-  if (!lines.length) return null;
-  var entries = lines.map(function(line){
-    var cols = line.split(',');
-    return { date: (cols[0]||'').replace(/-/g,''), close: parseFloat(cols[4]) };
-  }).filter(function(e){ return !isNaN(e.close) && e.date <= targetStr; });
-  if (!entries.length) return null;
-  entries.sort(function(a,b){ return b.date > a.date ? 1 : -1; });
-  return String(Math.round(entries[0].close * 100) / 100);
+function priceAtDate(entries, targetYYYYMMDD) {
+  if (!entries || !entries.length || !targetYYYYMMDD) return null;
+  var candidates = entries.filter(function(e){ return e.date <= targetYYYYMMDD; });
+  if (!candidates.length) return null;
+  candidates.sort(function(a, b){ return b.date > a.date ? 1 : -1; });
+  return String(Math.round(candidates[0].close * 100) / 100);
 }
 
 async function fetchFinnhub(sym, key) {
@@ -90,33 +61,32 @@ async function fetchFinnhub(sym, key) {
 }
 
 async function fetchStooq(symbol) {
-  var now = new Date();
-  var d2 = now.toISOString().slice(0,10).replace(/-/g,'');
-  var past = new Date(now.getTime() - 35 * 24 * 60 * 60 * 1000);
-  var d1 = past.toISOString().slice(0,10).replace(/-/g,'');
-  var url = 'https://stooq.com/q/d/l/?s=' + symbol + '&d1=' + d1 + '&d2=' + d2 + '&i=d';
-  var res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-  var csv = await res.text();
-  var lines = csv.trim().split('\n').filter(function(l){ return l && !l.startsWith('Date') && l.indexOf(',') !== -1; });
+  var now  = new Date();
+  var d2   = now.toISOString().slice(0,10).replace(/-/g,'');
+  var past = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+  var d1   = past.toISOString().slice(0,10).replace(/-/g,'');
+  var url  = 'https://stooq.com/q/d/l/?s=' + symbol + '&d1=' + d1 + '&d2=' + d2 + '&i=d';
+  var res  = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+  var csv  = await res.text();
+  var lines = csv.trim().split('\n').filter(function(l){
+    return l && !l.startsWith('Date') && l.indexOf(',') !== -1;
+  });
   if (lines.length < 2) return null;
   var entries = lines.map(function(line){
     var cols = line.split(',');
-    return { close: parseFloat(cols[4]) };
+    return { date: (cols[0]||'').replace(/-/g,''), close: parseFloat(cols[4]) };
   }).filter(function(e){ return !isNaN(e.close); });
   if (!entries.length) return null;
-  var latest = entries[entries.length - 1];
-  var oldest = entries[0];
-  // 7d perf: compare latest vs entry ~7 trading days ago (entries sorted oldest->latest)
-  var week7idx = Math.max(0, entries.length - 6);
-  var week7entry = entries[Math.max(0, entries.length - 6 > 0 ? entries.length - 6 : 0)];
-  var perf7d = (week7entry && week7entry.close && week7entry.close !== latest.close)
+  var latest    = entries[entries.length - 1];
+  var oldest    = entries[0];
+  var week7entry = entries[Math.max(0, entries.length - 6)];
+  var perf7d = (week7entry && week7entry.close !== latest.close)
     ? Math.round(((latest.close - week7entry.close) / week7entry.close) * 1000) / 10
     : null;
-  // 1m perf: compare latest vs oldest entry (~30 days ago)
-  var perf1m = (entries.length >= 3 && oldest.close && oldest.close !== latest.close)
+  var perf1m = (entries.length >= 3 && oldest.close !== latest.close)
     ? Math.round(((latest.close - oldest.close) / oldest.close) * 1000) / 10
     : null;
-  return { currentPrice: String(Math.round(latest.close * 100) / 100), perf7d: perf7d, perf1m: perf1m };
+  return { currentPrice: String(Math.round(latest.close * 100) / 100), perf7d: perf7d, perf1m: perf1m, entries: entries };
 }
 
 module.exports = async function handler(req, res) {
@@ -125,7 +95,6 @@ module.exports = async function handler(req, res) {
   if (!FINNHUB_KEY) return res.status(500).json({ error: 'FINNHUB_KEY not set' });
 
   try {
-    // 1. Load companies from JSONBin
     var jbRes = await fetch(
       'https://api.jsonbin.io/v3/b/' + JSONBIN_ID + '/latest',
       { headers: { 'X-Master-Key': JSONBIN_KEY, 'X-Bin-Meta': 'false' } }
@@ -137,69 +106,73 @@ module.exports = async function handler(req, res) {
 
     var dataMap = {};
 
-    // 2a. Finnhub in batches of 10 with 1s pause between batches
+    // 2a. Finnhub — current price + 7d perf for US tickers
     var usTickers = companies
       .map(function(c){ return { ticker: c.ticker, sym: FINNHUB_MAP[c.ticker] }; })
       .filter(function(x){ return x.sym; });
-
-    var BATCH = 10;
-    for (var i = 0; i < usTickers.length; i += BATCH) {
-      var batch = usTickers.slice(i, i + BATCH);
-      var results = await Promise.all(batch.map(async function(item) {
+    for (var i = 0; i < usTickers.length; i += 10) {
+      var batch = usTickers.slice(i, i + 10);
+      var batchResults = await Promise.all(batch.map(async function(item) {
         try {
           var d = await fetchFinnhub(item.sym, FINNHUB_KEY);
           return { ticker: item.ticker, currentPrice: d.currentPrice, perf7d: d.perf7d };
-        } catch(e) {
-          return { ticker: item.ticker, currentPrice: null, perf7d: null };
-        }
+        } catch(e) { return { ticker: item.ticker, currentPrice: null, perf7d: null }; }
       }));
-      results.forEach(function(r){ dataMap[r.ticker] = r; });
-      if (i + BATCH < usTickers.length) await sleep(1000);
+      batchResults.forEach(function(r){ dataMap[r.ticker] = r; });
+      if (i + 10 < usTickers.length) await sleep(1000);
     }
 
-    // 2b. Stooq for international — sequential with 300ms pause to avoid rate limit
+    // 2b. Stooq intl — current price, perf, AND analysisPrice from same CSV
     var intlTickers = companies
-      .map(function(c){ return { ticker: c.ticker, sym: STOOQ_MAP[c.ticker] }; })
+      .map(function(c){ return { ticker: c.ticker, sym: STOOQ_MAP[c.ticker], co: c }; })
       .filter(function(x){ return x.sym; });
-
     for (var j = 0; j < intlTickers.length; j++) {
       var item = intlTickers[j];
       try {
         var data = await fetchStooq(item.sym);
-        dataMap[item.ticker] = { ticker: item.ticker, currentPrice: data ? data.currentPrice : null, perf7d: data ? data.perf7d : null, perf1m: data ? data.perf1m : null };
-      } catch(e) {
-        dataMap[item.ticker] = { ticker: item.ticker, currentPrice: null, perf7d: null };
-      }
+        dataMap[item.ticker] = {
+          ticker:       item.ticker,
+          currentPrice: data ? data.currentPrice : null,
+          perf7d:       data ? data.perf7d : null,
+          perf1m:       data ? data.perf1m : null,
+          analysisPrice: (!item.co.analysisPrice && data && data.entries)
+            ? priceAtDate(data.entries, parseDDMMYYYY(item.co.priceDate)) : null,
+        };
+      } catch(e) { dataMap[item.ticker] = { ticker: item.ticker, currentPrice: null, perf7d: null }; }
       if (j < intlTickers.length - 1) await sleep(300);
     }
 
-    // 2c. Stooq for US tickers perf1m (sequential, 300ms pause)
-    var usPerf1mTickers = companies
-      .map(function(c){ return { ticker: c.ticker, sym: STOOQ_US_MAP[c.ticker] }; })
+    // 2c. Stooq US — perf1m AND analysisPrice from same CSV
+    var usStooqTickers = companies
+      .map(function(c){ return { ticker: c.ticker, sym: STOOQ_US_MAP[c.ticker], co: c }; })
       .filter(function(x){ return x.sym; });
-
-    for (var k = 0; k < usPerf1mTickers.length; k++) {
-      var usItem = usPerf1mTickers[k];
+    for (var k = 0; k < usStooqTickers.length; k++) {
+      var usItem = usStooqTickers[k];
       try {
         var usData = await fetchStooq(usItem.sym);
         if (dataMap[usItem.ticker]) {
           dataMap[usItem.ticker].perf1m = usData ? usData.perf1m : null;
+          if (!usItem.co.analysisPrice && usData && usData.entries) {
+            dataMap[usItem.ticker].analysisPrice =
+              priceAtDate(usData.entries, parseDDMMYYYY(usItem.co.priceDate));
+          }
         }
       } catch(e) {}
-      if (k < usPerf1mTickers.length - 1) await sleep(300);
+      if (k < usStooqTickers.length - 1) await sleep(300);
     }
 
-    // 3. Update companies — apply currentPrice for all mapped tickers
+    // 3. Update companies
     var updated = 0;
     var updatedCompanies = companies.map(function(c) {
       var d = dataMap[c.ticker];
       if (!d || !d.currentPrice) return c;
       updated++;
       return Object.assign({}, c, {
-        currentPrice: d.currentPrice,
-        perf7d: d.perf7d,
-        perf1m: d.perf1m != null ? d.perf1m : (c.perf1m || null),
+        currentPrice:   d.currentPrice,
+        perf7d:         d.perf7d,
+        perf1m:         d.perf1m != null ? d.perf1m : (c.perf1m || null),
         priceUpdatedAt: new Date().toISOString(),
+        analysisPrice:  c.analysisPrice || d.analysisPrice || null,
       });
     });
 
@@ -214,9 +187,10 @@ module.exports = async function handler(req, res) {
       success: true,
       updated: updated,
       total: companies.length,
+      analysisPricesFilled: updatedCompanies.filter(function(c){ return c.analysisPrice; }).length,
+      analysisPriceSample: updatedCompanies.filter(function(c){ return c.analysisPrice; }).slice(0,5)
+        .map(function(c){ return { ticker: c.ticker, analysisPrice: c.analysisPrice, priceDate: c.priceDate }; }),
       timestamp: new Date().toISOString(),
-      usSample: updatedCompanies.slice(0,3).map(function(c){ return { ticker: c.ticker, currentPrice: c.currentPrice, perf7d: c.perf7d }; }),
-      intlSample: updatedCompanies.filter(function(c){ return STOOQ_MAP[c.ticker]; }).map(function(c){ return { ticker: c.ticker, currentPrice: c.currentPrice, perf7d: c.perf7d }; }),
     });
 
   } catch(error) {
