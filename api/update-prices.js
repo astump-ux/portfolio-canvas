@@ -189,47 +189,17 @@ module.exports = async function handler(req, res) {
       if (k < usPerf1mTickers.length - 1) await sleep(300);
     }
 
-    // 2d. Fetch analysisPrice (once) for companies missing it
-    // US stocks: Finnhub candles; International: Stooq with exchange symbol (same as current price)
-    var needsAnalysisPrice = companies.filter(function(c){
-      return !c.analysisPrice && c.priceDate && (FINNHUB_MAP[c.ticker] || STOOQ_MAP[c.ticker]);
-    });
-    var analysisPriceMap = {};
-    for (var ap = 0; ap < needsAnalysisPrice.length; ap++) {
-      var apItem = needsAnalysisPrice[ap];
-      var pd = parseDDMMYYYY(apItem.priceDate);
-      if (!pd) { if (ap < needsAnalysisPrice.length-1) await sleep(300); continue; }
-      try {
-        var apPrice = null;
-        if (FINNHUB_MAP[apItem.ticker]) {
-          apPrice = await fetchFinnhubAtDate(FINNHUB_MAP[apItem.ticker], pd, FINNHUB_KEY);
-        } else if (STOOQ_MAP[apItem.ticker]) {
-          apPrice = await fetchStooqAtDate(STOOQ_MAP[apItem.ticker], pd);
-        }
-        if (apPrice) analysisPriceMap[apItem.ticker] = apPrice;
-      } catch(e) {}
-      if (ap < needsAnalysisPrice.length - 1) await sleep(350);
-    }
-
-    // 3. Update companies — apply currentPrice AND analysisPrice for all
+    // 3. Update companies — apply currentPrice for all mapped tickers
     var updated = 0;
     var updatedCompanies = companies.map(function(c) {
       var d = dataMap[c.ticker];
-      var newAnalysisPrice = c.analysisPrice || analysisPriceMap[c.ticker] || null;
-      if (!d || !d.currentPrice) {
-        // No current price update, but still save analysisPrice if newly fetched
-        if (newAnalysisPrice && newAnalysisPrice !== c.analysisPrice) {
-          return Object.assign({}, c, { analysisPrice: newAnalysisPrice });
-        }
-        return c;
-      }
+      if (!d || !d.currentPrice) return c;
       updated++;
       return Object.assign({}, c, {
         currentPrice: d.currentPrice,
         perf7d: d.perf7d,
         perf1m: d.perf1m != null ? d.perf1m : (c.perf1m || null),
         priceUpdatedAt: new Date().toISOString(),
-        analysisPrice: newAnalysisPrice,
       });
     });
 
