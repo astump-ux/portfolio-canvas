@@ -31,35 +31,44 @@ const STOOQ_US_MAP = {
 
 function sleep(ms) { return new Promise(function(r){ setTimeout(r, ms); }); }
 
-// Combined map: ticker → Stooq symbol (US uses .us suffix, intl uses exchange suffix)
-const STOOQ_ALL_MAP = Object.assign({}, STOOQ_US_MAP, STOOQ_MAP);
-
 function parseDDMMYYYY(s) {
   if (!s) return null;
   var m = s.match(/^(\d{1,2})\.(\d{2})\.(\d{4})$/);
   if (!m) return null;
-  return m[3] + m[2].padStart(2,'0') + m[1].padStart(2,'0'); // YYYYMMDD
+  return { y: parseInt(m[3]), mo: parseInt(m[2])-1, d: parseInt(m[1]) };
 }
 
-async function fetchStooqAtDate(symbol, targetYYYYMMDD) {
-  var target = new Date(
-    parseInt(targetYYYYMMDD.slice(0,4)),
-    parseInt(targetYYYYMMDD.slice(4,6)) - 1,
-    parseInt(targetYYYYMMDD.slice(6,8))
-  );
+async function fetchFinnhubAtDate(sym, parsedDate, key) {
+  // Finnhub candles: fetch 7-day window around analysis date
+  var from = new Date(parsedDate.y, parsedDate.mo, parsedDate.d - 4);
+  var to   = new Date(parsedDate.y, parsedDate.mo, parsedDate.d + 1);
+  var url = 'https://finnhub.io/api/v1/stock/candle?symbol=' + encodeURIComponent(sym)
+    + '&resolution=D&from=' + Math.floor(from.getTime()/1000)
+    + '&to=' + Math.floor(to.getTime()/1000)
+    + '&token=' + key;
+  var res = await fetch(url);
+  var data = await res.json();
+  if (!data || data.s === 'no_data' || !data.c || !data.c.length) return null;
+  // Return last closing price in window (closest to target date)
+  var last = data.c[data.c.length - 1];
+  return last ? String(Math.round(last * 100) / 100) : null;
+}
+
+async function fetchStooqAtDate(symbol, parsedDate) {
+  var target = new Date(parsedDate.y, parsedDate.mo, parsedDate.d);
   var d1Date = new Date(target.getTime() - 5 * 86400000);
   var d2Date = new Date(target.getTime() + 2 * 86400000);
-  var d1 = d1Date.toISOString().slice(0,10).replace(/-/g,'');
-  var d2 = d2Date.toISOString().slice(0,10).replace(/-/g,'');
-  var url = 'https://stooq.com/q/d/l/?s=' + symbol + '&d1=' + d1 + '&d2=' + d2 + '&i=d';
+  var fmt = function(d){ return d.toISOString().slice(0,10).replace(/-/g,''); };
+  var url = 'https://stooq.com/q/d/l/?s=' + symbol + '&d1=' + fmt(d1Date) + '&d2=' + fmt(d2Date) + '&i=d';
   var res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
   var csv = await res.text();
+  var targetStr = String(parsedDate.y) + String(parsedDate.mo+1).padStart(2,'0') + String(parsedDate.d).padStart(2,'0');
   var lines = csv.trim().split('\n').filter(function(l){ return l && !l.startsWith('Date') && l.indexOf(',') !== -1; });
   if (!lines.length) return null;
   var entries = lines.map(function(line){
     var cols = line.split(',');
     return { date: (cols[0]||'').replace(/-/g,''), close: parseFloat(cols[4]) };
-  }).filter(function(e){ return !isNaN(e.close) && e.date <= targetYYYYMMDD; });
+  }).filter(function(e){ return !isNaN(e.close) && e.date <= targetStr; });
   if (!entries.length) return null;
   entries.sort(function(a,b){ return b.date > a.date ? 1 : -1; });
   return String(Math.round(entries[0].close * 100) / 100);
@@ -180,34 +189,47 @@ module.exports = async function handler(req, res) {
       if (k < usPerf1mTickers.length - 1) await sleep(300);
     }
 
-    // 2d. Fetch analysisPrice (once) for companies missing it, using Stooq at priceDate
+    // 2d. Fetch analysisPrice (once) for companies missing it
+    // US stocks: Finnhub candles; International: Stooq with exchange symbol (same as current price)
     var needsAnalysisPrice = companies.filter(function(c){
-      return !c.analysisPrice && c.priceDate && STOOQ_ALL_MAP[c.ticker];
+      return !c.analysisPrice && c.priceDate && (FINNHUB_MAP[c.ticker] || STOOQ_MAP[c.ticker]);
     });
     var analysisPriceMap = {};
     for (var ap = 0; ap < needsAnalysisPrice.length; ap++) {
       var apItem = needsAnalysisPrice[ap];
-      var yyyymmdd = parseDDMMYYYY(apItem.priceDate);
-      if (!yyyymmdd) continue;
+      var pd = parseDDMMYYYY(apItem.priceDate);
+      if (!pd) { if (ap < needsAnalysisPrice.length-1) await sleep(300); continue; }
       try {
-        var apPrice = await fetchStooqAtDate(STOOQ_ALL_MAP[apItem.ticker], yyyymmdd);
+        var apPrice = null;
+        if (FINNHUB_MAP[apItem.ticker]) {
+          apPrice = await fetchFinnhubAtDate(FINNHUB_MAP[apItem.ticker], pd, FINNHUB_KEY);
+        } else if (STOOQ_MAP[apItem.ticker]) {
+          apPrice = await fetchStooqAtDate(STOOQ_MAP[apItem.ticker], pd);
+        }
         if (apPrice) analysisPriceMap[apItem.ticker] = apPrice;
       } catch(e) {}
-      if (ap < needsAnalysisPrice.length - 1) await sleep(300);
+      if (ap < needsAnalysisPrice.length - 1) await sleep(350);
     }
 
-    // 3. Update companies
+    // 3. Update companies — apply currentPrice AND analysisPrice for all
     var updated = 0;
     var updatedCompanies = companies.map(function(c) {
       var d = dataMap[c.ticker];
-      if (!d || !d.currentPrice) return c;
+      var newAnalysisPrice = c.analysisPrice || analysisPriceMap[c.ticker] || null;
+      if (!d || !d.currentPrice) {
+        // No current price update, but still save analysisPrice if newly fetched
+        if (newAnalysisPrice && newAnalysisPrice !== c.analysisPrice) {
+          return Object.assign({}, c, { analysisPrice: newAnalysisPrice });
+        }
+        return c;
+      }
       updated++;
       return Object.assign({}, c, {
         currentPrice: d.currentPrice,
         perf7d: d.perf7d,
         perf1m: d.perf1m != null ? d.perf1m : (c.perf1m || null),
         priceUpdatedAt: new Date().toISOString(),
-        analysisPrice: c.analysisPrice || analysisPriceMap[c.ticker] || null,
+        analysisPrice: newAnalysisPrice,
       });
     });
 
