@@ -316,38 +316,26 @@ function OverviewTab({companies}){
           <SortTh label="Unternehmen" col="name" sort={sort} setSort={setSort}/>
           <SortTh label="Score" col="score" sort={sort} setSort={setSort}/>
           <SortTh label="Rating" col="rating" sort={sort} setSort={setSort}/>
-          <SortTh label="Technisch" col="ta" sort={sort} setSort={setSort}/>
-          <th>Analyse</th>
-          <SortTh label="Perf. seit Analyse" col="perfAnalysis" sort={sort} setSort={setSort}/>
           <SortTh label="Upside" col="upside" sort={sort} setSort={setSort}/>
           <SortTh label="Downside" col="downside" sort={sort} setSort={setSort}/>
+          <th>Analysepreis</th>
+          <th>Analyse</th>
           <SortTh label="7T" col="perf7d" sort={sort} setSort={setSort}/>
           <SortTh label="1M" col="perf1m" sort={sort} setSort={setSort}/>
           <th>Links</th>
         </tr></thead>
         <tbody>{sorted.map(c=>{
           const sc=avg(c.scores);
-          const ta=c.scores.ta||0;
-          const taColor=ta>=7?'var(--grn)':ta>=5?'var(--yel)':'var(--red)';
           const p7=c.perf7d!=null?c.perf7d:null;
           const p1m=c.perf1m!=null?c.perf1m:null;
-          const parseP=s=>{if(!s)return null;const m=(s||'').replace(/,/g,'.').match(/[\d]+(?:\.\d+)?/);return m?parseFloat(m[0]):null;};
-          const ap=parseP(c.price);
-          const cp=parseP(c.currentPrice);
-          let perfSinceEl=<span style={{color:'var(--dim)',fontSize:10}}>–</span>;
-          if(ap&&cp&&ap!==cp){
-            const pa=Math.round(((cp-ap)/ap)*1000)/10;
-            if(Math.abs(pa)<=200) perfSinceEl=<span style={{fontWeight:600,fontSize:12,color:pa>=0?'var(--grn)':'var(--red)'}}>{pa>=0?'+':''}{pa.toFixed(1)}%</span>;
-          }
           return <tr key={c.id}>
             <td><strong>{c.name}</strong><br/><span style={{color:'var(--dim)',fontSize:10}}>{c.ticker} · {c.exchange}</span></td>
             <td><span style={{color:'var(--pri)',fontWeight:700}}>{sc}</span></td>
             <td><span className={BGC[c.rating]||'badge'} style={{fontSize:11}}>{c.rating}</span></td>
-            <td><span style={{color:taColor,fontWeight:700}}>{ta}/10</span></td>
-            <td style={{fontSize:11,color:'var(--mut)'}}>{c.priceDate||'–'}</td>
-            <td>{perfSinceEl}</td>
             <td style={{color:'var(--grn)',fontWeight:600,fontSize:12}}>{c.upside}</td>
             <td style={{color:'var(--red)',fontWeight:600,fontSize:12}}>{c.downside}</td>
+            <td style={{fontSize:11,color:'var(--mut)',fontWeight:600}}>{c.price||'–'}</td>
+            <td style={{fontSize:11,color:'var(--mut)'}}>{c.priceDate||'–'}</td>
             <td style={{fontWeight:600,fontSize:12,color:p7==null?'var(--dim)':p7>=0?'var(--grn)':'var(--red)'}}>
               {p7==null?<span style={{color:'var(--dim)',fontSize:10}}>–</span>:(p7>=0?'+':'')+p7.toFixed(1)+'%'}
             </td>
