@@ -272,9 +272,8 @@ function OverviewTab({companies}){
   const [histLoading,setHistLoading]=useState(false);
   const total=companies.length;
   const avgSc=total?Math.round(companies.reduce((a,c)=>a+avg(c.scores),0)/total*10)/10:0;
-  if(!total) return <div className="empty">Noch keine Analysen vorhanden.</div>;
-
-  React.useEffect(()=>{
+  const depKey=companies.map(function(c){return c.ticker+c.priceDate;}).join(',');
+  useEffect(function(){
     if(!companies.length) return;
     setHistLoading(true);
     var items=companies.filter(function(c){return c.ticker&&c.priceDate;}).map(function(c){return {ticker:c.ticker,date:c.priceDate};});
@@ -283,7 +282,8 @@ function OverviewTab({companies}){
       .then(function(r){return r.json();})
       .then(function(d){setHistPrices(d||{});setHistLoading(false);})
       .catch(function(){setHistLoading(false);});
-  },[companies.map(function(c){return c.ticker+c.priceDate;}).join(',')]);
+  },[depKey]);
+  if(!total) return <div className="empty">Noch keine Analysen vorhanden.</div>;
 
   const sorted=[...companies].sort((a,b)=>{
     let av,bv;
