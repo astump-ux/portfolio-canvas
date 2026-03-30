@@ -268,19 +268,27 @@ function SortTh({label,col,sort,setSort}){
 
 function OverviewTab({companies}){
   const [sort,setSort]=useState({col:'score',dir:'desc'});
+  const [histPrices,setHistPrices]=useState({});
+  const [histLoading,setHistLoading]=useState(false);
   const total=companies.length;
   const avgSc=total?Math.round(companies.reduce((a,c)=>a+avg(c.scores),0)/total*10)/10:0;
-  const buys=companies.filter(c=>c.rating==='KAUFEN').length;
-  const allEvts=companies.flatMap(c=>c.events.filter(e=>e.title&&e.dateSort)).sort((a,b)=>parseDateSort(a.dateSort)>parseDateSort(b.dateSort)?1:-1);
-  const nextEvt=allEvts[0];
-  const nextCo=nextEvt?companies.find(c=>c.events.some(e=>e.id===nextEvt.id)):null;
   if(!total) return <div className="empty">Noch keine Analysen vorhanden.</div>;
+
+  React.useEffect(()=>{
+    if(!companies.length) return;
+    setHistLoading(true);
+    var items=companies.filter(function(c){return c.ticker&&c.priceDate;}).map(function(c){return {ticker:c.ticker,date:c.priceDate};});
+    if(!items.length){setHistLoading(false);return;}
+    fetch('/api/historical-price?data='+encodeURIComponent(JSON.stringify(items)))
+      .then(function(r){return r.json();})
+      .then(function(d){setHistPrices(d||{});setHistLoading(false);})
+      .catch(function(){setHistLoading(false);});
+  },[companies.map(function(c){return c.ticker+c.priceDate;}).join(',')]);
 
   const sorted=[...companies].sort((a,b)=>{
     let av,bv;
     if(sort.col==='name'){av=a.name;bv=b.name;}
     else if(sort.col==='score'){av=avg(a.scores);bv=avg(b.scores);}
-    else if(sort.col==='ta'){av=a.scores.ta;bv=b.scores.ta;}
     else if(sort.col==='rating'){
       const RM={KAUFEN:0,HALTEN:1,VERKAUFEN:2};
       av=RM[a.rating]!=null?RM[a.rating]:3;
@@ -288,7 +296,8 @@ function OverviewTab({companies}){
     }
     else if(sort.col==='upside'){av=parseFloat((a.upside||'').replace(/[^0-9.-]/g,''))||0;bv=parseFloat((b.upside||'').replace(/[^0-9.-]/g,''))||0;}
     else if(sort.col==='downside'){av=parseFloat((a.downside||'').replace(/[^0-9.-]/g,''))||0;bv=parseFloat((b.downside||'').replace(/[^0-9.-]/g,''))||0;}
-    else if(sort.col==='perf7d'||sort.col==='perf1m'||sort.col==='perfAnalysis'){
+    else if(sort.col==='priceDate'){av=a.priceDate||'';bv=b.priceDate||'';}
+    else if(sort.col==='perf7d'||sort.col==='perf1m'){
       av=a[sort.col]!=null?a[sort.col]:null;
       bv=b[sort.col]!=null?b[sort.col]:null;
       if(av===null&&bv===null) return 0;
@@ -304,19 +313,19 @@ function OverviewTab({companies}){
     <div className="kpi-grid">
       <div className="kpi"><div className="kpi-l">Analysen</div><div className="kpi-v" style={{color:'var(--pri)'}}>{total}</div><div className="kpi-s">Canvas v2.2</div></div>
       <div className="kpi"><div className="kpi-l">Ø Score</div><div className="kpi-v" style={{color:'var(--pri)'}}>{avgSc}/10</div></div>
-      <div className="kpi"><div className="kpi-l">Ratings</div><div className="kpi-v" style={{color:'var(--grn)'}}>{buys}x Kaufen</div><div className="kpi-s">{companies.filter(c=>c.rating==='HALTEN').length}x Halten · {companies.filter(c=>c.rating==='VERKAUFEN').length}x Verkaufen</div></div>
     </div>
     <div className="sec" style={{marginBottom:24}}>
-      <div className="sec-hdr">Vergleichsübersicht</div>
+      <div className="sec-hdr">Vergleichsübersicht{histLoading&&<span style={{fontSize:11,color:'var(--mut)',fontWeight:400,marginLeft:10}}>Preise werden geladen…</span>}</div>
       <div className="tbl-wrap"><table>
         <thead><tr>
           <SortTh label="Unternehmen" col="name" sort={sort} setSort={setSort}/>
           <SortTh label="Score" col="score" sort={sort} setSort={setSort}/>
           <SortTh label="Rating" col="rating" sort={sort} setSort={setSort}/>
+          <th>Preis</th>
           <SortTh label="Upside" col="upside" sort={sort} setSort={setSort}/>
           <SortTh label="Downside" col="downside" sort={sort} setSort={setSort}/>
-          <th>Analysepreis</th>
-          <th>Analyse</th>
+          <SortTh label="Datum" col="priceDate" sort={sort} setSort={setSort}/>
+          <th>Aktuell</th>
           <SortTh label="7T" col="perf7d" sort={sort} setSort={setSort}/>
           <SortTh label="1M" col="perf1m" sort={sort} setSort={setSort}/>
           <th>Links</th>
@@ -325,14 +334,21 @@ function OverviewTab({companies}){
           const sc=avg(c.scores);
           const p7=c.perf7d!=null?c.perf7d:null;
           const p1m=c.perf1m!=null?c.perf1m:null;
+          const hp=histPrices[c.ticker];
+          const priceEl=histLoading
+            ?<span style={{color:'var(--dim)',fontSize:10}}>…</span>
+            :hp
+              ?<span style={{fontWeight:600,fontSize:12}}>{hp}</span>
+              :<span style={{color:'var(--mut)',fontSize:11}}>{c.price||'–'}</span>;
           return <tr key={c.id}>
             <td><strong>{c.name}</strong><br/><span style={{color:'var(--dim)',fontSize:10}}>{c.ticker} · {c.exchange}</span></td>
             <td><span style={{color:'var(--pri)',fontWeight:700}}>{sc}</span></td>
             <td><span className={BGC[c.rating]||'badge'} style={{fontSize:11}}>{c.rating}</span></td>
+            <td>{priceEl}</td>
             <td style={{color:'var(--grn)',fontWeight:600,fontSize:12}}>{c.upside}</td>
             <td style={{color:'var(--red)',fontWeight:600,fontSize:12}}>{c.downside}</td>
-            <td style={{fontSize:11,color:'var(--mut)',fontWeight:600}}>{c.price||'–'}</td>
             <td style={{fontSize:11,color:'var(--mut)'}}>{c.priceDate||'–'}</td>
+            <td style={{fontSize:12,color:'var(--txt)',fontWeight:600}}>{c.currentPrice||<span style={{color:'var(--dim)',fontSize:10}}>–</span>}</td>
             <td style={{fontWeight:600,fontSize:12,color:p7==null?'var(--dim)':p7>=0?'var(--grn)':'var(--red)'}}>
               {p7==null?<span style={{color:'var(--dim)',fontSize:10}}>–</span>:(p7>=0?'+':'')+p7.toFixed(1)+'%'}
             </td>
