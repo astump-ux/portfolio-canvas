@@ -476,7 +476,12 @@ function FeedTab({companies,newsCache}){
           var count=companies.reduce(function(acc,co){
             var evts=(co.events||[]).filter(function(e){return e.title&&e.dateSort;});
             if(v==='upcoming') return acc+(evts.filter(function(e){return new Date(parseDateSort(e.dateSort))>=today;}).length>0?1:0);
-            if(v==='overdue') return acc+(evts.filter(function(e){return new Date(parseDateSort(e.dateSort))<today;}).length>0?1:0);
+            if(v==='overdue'){
+              var hasOverdueEvts=evts.filter(function(e){return new Date(parseDateSort(e.dateSort))<today;}).length>0;
+              if(!hasOverdueEvts) return acc;
+              var hasNewsMatch=!!(newsCache&&newsCache.find(function(n){return n.ticker===co.ticker;}));
+              return acc+(hasNewsMatch?0:1);
+            }
             return acc+((newsCache&&newsCache.find(function(n){return n.ticker===co.ticker;}))?1:0);
           },0);
           return <button key={v} className={'chip'+(viewMode===v?' active':'')} onClick={function(){setViewMode(v);setTickerFilter('all');}}>
@@ -1019,14 +1024,12 @@ function App(){
       <button className={'tab'+(tab==='feed'?' active':'')} onClick={()=>setTab('feed')}>Events</button>
       <button className={'tab'+(tab==='news'?' active':'')} onClick={()=>setTab('news')}>News Scan</button>
       <button className={'tab'+(tab==='manage'?' active':'')} onClick={()=>setTab('manage')}>Verwalten</button>
-      <button className={'tab'+(tab==='make'?' active':'')} onClick={()=>setTab('make')}>Make.com</button>
     </div>
     <div className="main">
       {tab==='overview'&&<OverviewTab companies={cos}/>}
       {tab==='feed'&&<FeedTab companies={cos} newsCache={newsCache}/>}
       {tab==='news'&&<NewsTab companies={cos} newsCache={newsCache} onNewsUpdate={function(nc){setNewsCache(nc);setNewsCacheUpdatedAt(new Date().toISOString());}}/>}
       {tab==='manage'&&<ManageTab companies={cos} onAdd={()=>setModal(blankCo())} onEdit={c=>setModal(JSON.parse(JSON.stringify(c)))} onDelete={del} onReset={reset} onSync={syncFromJSONBin} onPush={pushToJSONBin} syncing={syncing}/>}
-      {tab==='make'&&<MakeTab/>}
     </div>
     {modal&&<ModalForm co={modal} onSave={save} onClose={()=>setModal(null)}/>}
     {toast&&<Toast msg={toast.msg} err={toast.err} onDone={()=>setToast(null)}/>}
