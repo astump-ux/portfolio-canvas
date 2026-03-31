@@ -175,11 +175,14 @@ module.exports = async function handler(req, res) {
       });
     });
 
-    // 4. Write back to JSONBin
+    // 4. Write back to JSONBin — preserve newsCache and other existing fields
     await fetch('https://api.jsonbin.io/v3/b/' + JSONBIN_ID, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_KEY },
-      body: JSON.stringify({ companies: updatedCompanies, pricesUpdatedAt: new Date().toISOString() }),
+      body: JSON.stringify(Object.assign({}, jbData, {
+        companies: updatedCompanies,
+        pricesUpdatedAt: new Date().toISOString(),
+      })),
     });
 
     return res.status(200).json({
