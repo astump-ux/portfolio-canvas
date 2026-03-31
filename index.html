@@ -1033,7 +1033,7 @@ function App(){
     </div>
     <div className="main">
       {tab==='overview'&&<OverviewTab companies={cos}/>}
-      {tab==='feed'&&<FeedTab companies={cos} newsCache={newsCache}/>}
+      {tab==='feed'&&<EventsTab companies={cos} newsCache={newsCache}/>}
       {tab==='news'&&<NewsTab companies={cos} newsCache={newsCache} onNewsUpdate={function(nc){setNewsCache(nc);setNewsCacheUpdatedAt(new Date().toISOString());}}/>}
       {tab==='manage'&&<ManageTab companies={cos} onAdd={()=>setModal(blankCo())} onEdit={c=>setModal(JSON.parse(JSON.stringify(c)))} onDelete={del} onReset={reset} onSync={syncFromJSONBin} onPush={pushToJSONBin} syncing={syncing}/>}
     </div>
