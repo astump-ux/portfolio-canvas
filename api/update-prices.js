@@ -172,7 +172,6 @@ module.exports = async function handler(req, res) {
         perf7d:         d.perf7d,
         perf1m:         d.perf1m != null ? d.perf1m : (c.perf1m || null),
         priceUpdatedAt: new Date().toISOString(),
-        analysisPrice:  c.analysisPrice || d.analysisPrice || null,
       });
     });
 

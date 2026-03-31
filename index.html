@@ -323,10 +323,10 @@ function OverviewTab({companies}){
           const p7=c.perf7d!=null?c.perf7d:null;
           const p1m=c.perf1m!=null?c.perf1m:null;
           const parseNum=function(s){if(!s) return null; var m=String(s).replace(/,/g,'.').match(/[\d]+(?:\.\d+)?/); return m?parseFloat(m[0]):null;};
-          const apNum=parseNum(c.analysisPrice);
+          const apNum=parseNum(c.price);
           const cpNum=parseNum(c.currentPrice);
           const delta=(apNum&&cpNum)?Math.round(((cpNum-apNum)/apNum)*1000)/10:null;
-          const priceDisplay=c.analysisPrice||<span style={{color:'var(--mut)'}}>–</span>;
+          const priceDisplay=c.price?<span>{c.price}</span>:<span style={{color:'var(--mut)'}}>–</span>;
           return <tr key={c.id}>
             <td><strong>{c.name}</strong><br/><span style={{color:'var(--dim)',fontSize:10}}>{c.ticker} · {c.exchange}</span></td>
             <td><span style={{color:'var(--pri)',fontWeight:700}}>{sc}</span></td>
