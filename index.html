@@ -186,15 +186,15 @@ const SEED=[
   {id:'team',ticker:'TEAM',name:'Atlassian Corporation',exchange:'NASDAQ',sector:'DevOps SaaS',price:'~$79',priceDate:'27.02.2026',w52:'~$68-$290',scores:{gm:8,bg:7,qu:8,wa:7,bw:9,cf:8,ri:5,ta:3},rating:'KAUFEN',zielkurs:'$140-200',upside:'+80-150%',downside:'-14%',rr:'1:6-11',horizont:'2-4 J.',badges:['DevOps','Rovo AI','PLG'],chatUrl:'https://claude.ai/chat/2593da9f-269e-492a-9f89-a08f3069a461',analyseUrl:'http://atlassian20260314184500.netlify.app',events:[{id:'e1',title:'Q3 FY2026 Earnings',date:'30. April 2026',dateSort:'2026-04-30',priority:'high',desc:'Guidance: Revenue $1.689-1.697 Mrd. (+21% YoY).',wd:[{t:'up',text:'RPO > 44% + NRR > 120% -> aggressiv nachkaufen.'},{t:'down',text:'NRR < 115% -> Position halbieren.'}]},{id:'e2',title:'Rovo AI-Monetarisierung',date:'H2 2026',dateSort:'2026-08-01',priority:'blue',desc:'Rovo mit 5 Mio. MAU bisher kostenfrei.',wd:[{t:'up',text:'Monetisierungsstrategie -> sofort nachkaufen.'},{t:'neutral',text:'Rovo bleibt kostenfrei -> halten.'}]},{id:'e3',title:'FY2027-Guidance',date:'August 2026',dateSort:'2026-08-15',priority:'med',desc:'Data-Center wird FY2027 "meaningfully down" gehen.',wd:[{t:'up',text:'20%+ CAGR bestätigt -> Vollposition aufbauen.'},{t:'down',text:'< 15% Wachstum -> 50% reduzieren.'}]}]}
 ];
 
-const SL={gm:'Geschäftsmodell',bg:'Burggraben',qu:'Quartale',wa:'Wachstum',bw:'Bewertung',cf:'Cashflow',ri:'Risiken (inv.)',ta:'Technisch'};
+const SL={gm:'Geschäftsmodell',bg:'Burggraben',qu:'Quartale',wa:'Wachstum',bw:'Bewertung',cf:'Cashflow',pe:'Peer-Vergleich',ri:'Risiken (inv.)',ta:'Technisch'};
 const PC={high:'#ef4444',med:'#f59e0b',blue:'#3b82f6',low:'#22c55e'};
 const RC={KAUFEN:'#22c55e',HALTEN:'#f59e0b',VERKAUFEN:'#ef4444'};
 const WI={up:'▲',down:'▼',neutral:'→'};
 const WC={up:'#22c55e',down:'#ef4444',neutral:'#f59e0b'};
 const BGC={KAUFEN:'badge pill-g',HALTEN:'badge pill-y',VERKAUFEN:'badge pill-r'};
 
-function avg(sc){return Math.round(Object.values(sc).reduce((a,b)=>a+b,0)/Object.values(sc).length*10)/10}
-function blankCo(){return{id:'co_'+Date.now(),ticker:'',name:'',exchange:'',sector:'',price:'',priceDate:'',w52:'',scores:{gm:5,bg:5,qu:5,wa:5,bw:5,cf:5,ri:5,ta:5},rating:'KAUFEN',zielkurs:'',upside:'',downside:'',rr:'',horizont:'',badges:[],chatUrl:'',analyseUrl:'',events:[{id:'e1',title:'',date:'',dateSort:'',priority:'high',desc:'',wd:[]},{id:'e2',title:'',date:'',dateSort:'',priority:'med',desc:'',wd:[]},{id:'e3',title:'',date:'',dateSort:'',priority:'blue',desc:'',wd:[]}]}}
+function avg(sc){const vals=Object.values(sc).filter(function(v){return v!==null&&v!==undefined;});return vals.length?Math.round(vals.reduce(function(a,b){return a+b;},0)/vals.length*10)/10:0;}
+function blankCo(){return{id:'co_'+Date.now(),ticker:'',name:'',exchange:'',sector:'',price:'',priceDate:'',w52:'',scores:{gm:5,bg:5,qu:5,wa:5,bw:5,cf:5,pe:null,ri:5,ta:5},rating:'KAUFEN',zielkurs:'',upside:'',downside:'',rr:'',horizont:'',badges:[],chatUrl:'',analyseUrl:'',events:[{id:'e1',title:'',date:'',dateSort:'',priority:'high',desc:'',wd:[]},{id:'e2',title:'',date:'',dateSort:'',priority:'med',desc:'',wd:[]},{id:'e3',title:'',date:'',dateSort:'',priority:'blue',desc:'',wd:[]}]}}
 
 function ScoreBar({val}){
   return <div className="sb"><div className="sb-track"><div className="sb-fill" style={{width:Math.round(val*10)+'%'}}></div></div><span className="sb-num">{val}</span></div>
@@ -848,7 +848,7 @@ function ModalForm({co,onSave,onClose}){
   const [d,setD]=useState(()=>JSON.parse(JSON.stringify(co)));
   const [mt,setMt]=useState('info');
   const setF=(f,v)=>setD(p=>({...p,[f]:v}));
-  const setScore=(k,v)=>setD(p=>({...p,scores:{...p.scores,[k]:Math.max(0,Math.min(10,parseFloat(v)||0))}}));
+  const setScore=(k,v)=>setD(p=>({...p,scores:{...p.scores,[k]:v===''?null:Math.max(0,Math.min(10,parseFloat(v)||0))}}));
   const setEvt=(i,f,v)=>setD(p=>{const ev=[...p.events];ev[i]={...ev[i],[f]:v};return{...p,events:ev}});
   const addWd=(i)=>setD(p=>{const ev=[...p.events];ev[i]={...ev[i],wd:[...ev[i].wd,{t:'up',text:''}]};return{...p,events:ev}});
   const setWd=(ei,wi,f,v)=>setD(p=>{const ev=[...p.events];const wd=[...ev[ei].wd];wd[wi]={...wd[wi],[f]:v};ev[ei]={...ev[ei],wd};return{...p,events:ev}});
@@ -867,7 +867,7 @@ function ModalForm({co,onSave,onClose}){
         </div>}
         {mt==='scores'&&<div>
           <div className="avg-score-box"><div className="lbl">Gesamtscore</div><div className="big">{sc}/10</div></div>
-          {Object.entries(SL).map(([k,lbl])=><div key={k} className="score-row"><span className="score-lbl">{lbl}</span><input type="number" className="score-inp" min="0" max="10" step="0.5" value={d.scores[k]} onChange={e=>setScore(k,e.target.value)}/><div className="score-bar-wrap"><div className="score-bar-live" style={{width:(d.scores[k]*10)+'%'}}></div></div><span style={{fontSize:11,color:d.scores[k]>=8?'var(--grn)':d.scores[k]>=6?'var(--yel)':'var(--red)',minWidth:32,textAlign:'right'}}>{d.scores[k]}/10</span></div>)}
+          {Object.entries(SL).map(([k,lbl])=>{const sv=d.scores[k];const isNull=sv===null||sv===undefined;return <div key={k} className="score-row"><span className="score-lbl">{lbl}</span><input type="number" className="score-inp" min="0" max="10" step="0.5" placeholder={isNull?'–':''} value={isNull?'':sv} onChange={e=>setScore(k,e.target.value)}/><div className="score-bar-wrap"><div className="score-bar-live" style={{width:isNull?'0%':(sv*10)+'%',opacity:isNull?0.3:1}}></div></div><span style={{fontSize:11,color:isNull?'var(--dim)':sv>=8?'var(--grn)':sv>=6?'var(--yel)':'var(--red)',minWidth:32,textAlign:'right'}}>{isNull?'–':sv+'/10'}</span></div>;})}
         </div>}
         {mt==='invest'&&<div>
           <div className="fld"><label>Rating</label><select value={d.rating} onChange={e=>setF('rating',e.target.value)}><option value="KAUFEN">KAUFEN</option><option value="HALTEN">HALTEN</option><option value="VERKAUFEN">VERKAUFEN</option></select></div>
