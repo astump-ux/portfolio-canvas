@@ -172,7 +172,7 @@ tr:hover td{background:#F8FAFC}
 const {useState,useEffect}=React;
 const SK='aktienanalyse-canvas-v22';
 const JSONBIN_ID='69b68c14aa77b81da9e78b7e';
-const JSONBIN_KEY='$2a$10$ehBtWQSMp.KI0cqlW569/OT9CjP9tSioF3M3edlZXSC1XiV3vI7Z2';
+const JSONBIN_KEY='$2a$10$ehBtWQSMp.KI0cqlW569/OT9CjP9tSioF3M3edlZXSC1XiV3Vi7Z2';
 
 const SEED=[
   {id:'xiaomi',ticker:'1810.HK',name:'Xiaomi Corporation',exchange:'HKEX',sector:'Tech/Consumer',price:'HK$ 22.60',priceDate:'03.03.2026',w52:'11.94-35.90',scores:{gm:8,bg:7,qu:8,wa:9,bw:8,cf:8,ri:7,ta:9},rating:'KAUFEN',zielkurs:'HK$ 35-42',upside:'+55-87%',downside:'-15%',rr:'1:4',horizont:'2-4 J.',badges:['EV','AIoT','Smartphones'],chatUrl:'https://claude.ai/chat/e4c73bdc-63c3-4084-b41e-43ba145eb200',analyseUrl:'https://xiaomi829183333.netlify.app/',events:[{id:'e1',title:'FY2025 Jahresergebnisse',date:'Mitte März 2026',dateSort:'2026-03-15',priority:'high',desc:'Erstes vollständiges Jahresbild mit EV-Umsatzanteil.',wd:[{t:'up',text:'EV-Marge >= 15% -> nachkaufen.'},{t:'down',text:'EV-Marge < 8% -> 30-50% reduzieren.'}]},{id:'e2',title:'SU7 Ultra Hochlauf',date:'Q2 2026',dateSort:'2026-05-01',priority:'med',desc:'SU7 Ultra Listenpreis RMB 529.900.',wd:[{t:'up',text:'Bestellwoche >= 15.000 -> aufstocken.'},{t:'down',text:'< 5.000 Bestellungen -> trimmen.'}]},{id:'e3',title:'EMEA-Expansion & AIoT',date:'H2 2026',dateSort:'2026-07-01',priority:'blue',desc:'Int. Umsatzanteil ~42%; EMEA-ASP Ziel EUR 450-500.',wd:[{t:'up',text:'EMEA-ASP >= EUR 380 -> Zielkurs HK$ 42-50.'},{t:'down',text:'EMEA < 10% Marktanteil -> reduzieren.'}]}]},
@@ -187,7 +187,7 @@ const WI={up:'▲',down:'▼',neutral:'→'};
 const WC={up:'#22c55e',down:'#ef4444',neutral:'#f59e0b'};
 const BGC={KAUFEN:'badge pill-g',HALTEN:'badge pill-y',VERKAUFEN:'badge pill-r'};
 
-function avg(sc){return Math.round(Object.values(sc).reduce((a,b)=>a+b,0)/Object.values(sc).length*10)/10}
+function avg(sc){if(!sc)return 0;var vals=Object.values(sc).filter(function(v){return v!=null&&v!==undefined;});if(!vals.length)return 0;return Math.round(vals.reduce(function(a,b){return a+b;},0)/vals.length*10)/10;}
 function blankCo(){return{id:'co_'+Date.now(),ticker:'',name:'',exchange:'',sector:'',price:'',priceDate:'',w52:'',scores:{gm:5,bg:5,qu:5,wa:5,bw:5,cf:5,ri:5,ta:5},rating:'KAUFEN',zielkurs:'',upside:'',downside:'',rr:'',horizont:'',badges:[],chatUrl:'',analyseUrl:'',events:[{id:'e1',title:'',date:'',dateSort:'',priority:'high',desc:'',wd:[]},{id:'e2',title:'',date:'',dateSort:'',priority:'med',desc:'',wd:[]},{id:'e3',title:'',date:'',dateSort:'',priority:'blue',desc:'',wd:[]}]}}
 
 function ScoreBar({val}){
