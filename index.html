@@ -905,10 +905,23 @@ function ManageTab({companies,onAdd,onEdit,onDelete,onReset,onSync,onPush,syncin
       var clean=raw;while(clean.indexOf('\x60\x60\x60json')>=0){clean=clean.replace('\x60\x60\x60json','');}while(clean.indexOf('\x60\x60\x60')>=0){clean=clean.replace('\x60\x60\x60','');}clean=clean.trim();
       const co=JSON.parse(clean);
       if(!co.ticker) throw new Error('ticker fehlt');
-      const r=await fetch('/api/deploy-analysis',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({company:co})});
-      const d=await r.json();
-      if(!d.ok) throw new Error(d.error||'Unbekannter Fehler');
-      setAnalyseMsg((d.action==='created'?'✅ Neue Aktie angelegt: ':'✅ Analyse aktualisiert: ')+d.ticker+' ('+d.total+' Aktien gesamt)');
+      // Direct JSONBin merge — no Vercel endpoint needed
+      const gr=await fetch('https://api.jsonbin.io/v3/b/'+JSONBIN_ID+'/latest',{headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':'false'}});
+      const gd=await gr.json();
+      const companies=Array.isArray(gd.companies)?gd.companies:[];
+      const idx=companies.findIndex(function(c){return c.ticker===co.ticker;});
+      const existing=idx>=0?companies[idx]:null;
+      const merged=Object.assign({},existing||{id:'co_'+Date.now()},co);
+      delete merged.analyseUrl;
+      if(idx>=0){companies[idx]=merged;}else{companies.push(merged);}
+      const pr=await fetch('https://api.jsonbin.io/v3/b/'+JSONBIN_ID,{method:'PUT',
+        headers:{'Content-Type':'application/json','X-Master-Key':JSONBIN_KEY},
+        body:JSON.stringify({companies:companies,pricesUpdatedAt:gd.pricesUpdatedAt||'',newsCache:gd.newsCache||[],newsCacheUpdatedAt:gd.newsCacheUpdatedAt||''})
+      });
+      if(!pr.ok) throw new Error('JSONBin Fehler: '+pr.status);
+      const action=idx>=0?'✅ Analyse aktualisiert: ':'✅ Neue Aktie angelegt: ';
+      setAnalyseMsg(action+co.ticker+' ('+companies.length+' Aktien gesamt)');
+      setCos(companies);
       setAnalysePaste('');
       if(onSync) onSync();
     }catch(e){setAnalyseMsg('❌ '+e.message);}
