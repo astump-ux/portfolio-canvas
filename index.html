@@ -905,23 +905,22 @@ function ManageTab({companies,onAdd,onEdit,onDelete,onReset,onSync,onPush,syncin
       var clean=raw;while(clean.indexOf('\x60\x60\x60json')>=0){clean=clean.replace('\x60\x60\x60json','');}while(clean.indexOf('\x60\x60\x60')>=0){clean=clean.replace('\x60\x60\x60','');}clean=clean.trim();
       const co=JSON.parse(clean);
       if(!co.ticker) throw new Error('ticker fehlt');
-      // Direct JSONBin merge — no Vercel endpoint needed
-      const gr=await fetch('https://api.jsonbin.io/v3/b/'+JSONBIN_ID+'/latest',{headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':'false'}});
-      const gd=await gr.json();
-      const companies=Array.isArray(gd.companies)?gd.companies:[];
-      const idx=companies.findIndex(function(c){return c.ticker===co.ticker;});
-      const existing=idx>=0?companies[idx]:null;
-      const merged=Object.assign({},existing||{id:'co_'+Date.now()},co);
-      delete merged.analyseUrl;
-      if(idx>=0){companies[idx]=merged;}else{companies.push(merged);}
-      const pr=await fetch('https://api.jsonbin.io/v3/b/'+JSONBIN_ID,{method:'PUT',
+      // Direct JSONBin merge
+      var jbGet=await fetch('https://api.jsonbin.io/v3/b/'+JSONBIN_ID+'/latest',{headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':'false'}});
+      var jbData=await jbGet.json();
+      var coList=Array.isArray(jbData.companies)?jbData.companies.slice():[];
+      var coIdx=coList.findIndex(function(x){return x.ticker===co.ticker;});
+      var coExisting=coIdx>=0?coList[coIdx]:null;
+      var coMerged=Object.assign({},coExisting||{id:'co_'+Date.now()},co);
+      delete coMerged.analyseUrl;
+      if(coIdx>=0){coList[coIdx]=coMerged;}else{coList.push(coMerged);}
+      var jbPut=await fetch('https://api.jsonbin.io/v3/b/'+JSONBIN_ID,{method:'PUT',
         headers:{'Content-Type':'application/json','X-Master-Key':JSONBIN_KEY},
-        body:JSON.stringify({companies:companies,pricesUpdatedAt:gd.pricesUpdatedAt||'',newsCache:gd.newsCache||[],newsCacheUpdatedAt:gd.newsCacheUpdatedAt||''})
+        body:JSON.stringify({companies:coList,pricesUpdatedAt:jbData.pricesUpdatedAt||'',newsCache:jbData.newsCache||[],newsCacheUpdatedAt:jbData.newsCacheUpdatedAt||''})
       });
-      if(!pr.ok) throw new Error('JSONBin Fehler: '+pr.status);
-      const action=idx>=0?'✅ Analyse aktualisiert: ':'✅ Neue Aktie angelegt: ';
-      setAnalyseMsg(action+co.ticker+' ('+companies.length+' Aktien gesamt)');
-      setCos(companies);
+      if(!jbPut.ok) throw new Error('JSONBin Fehler: '+jbPut.status);
+      var coAction=coIdx>=0?'Analyse aktualisiert: ':'Neue Aktie angelegt: ';
+      setAnalyseMsg('OK - '+coAction+co.ticker+' ('+coList.length+' gesamt)');
       setAnalysePaste('');
       if(onSync) onSync();
     }catch(e){setAnalyseMsg('❌ '+e.message);}
