@@ -173,12 +173,6 @@ const {useState,useEffect}=React;
 const SK='aktienanalyse-canvas-v22';
 const JSONBIN_ID='69b68c14aa77b81da9e78b7e';
 const JSONBIN_KEY='$2a$10$ehBtWQSMp.KI0cqlW569/OT9CjP9tSioF3M3edlZXSC1XiV3vI7Z2';
-const STOCK_ANALYSES_BASE='https://v0-stock-analyses.vercel.app';
-const GITHUB_INDEX_URL='https://raw.githubusercontent.com/astump-ux/stock-analyses/main/index.json';
-function getAnalyseUrl(co){
-  if(!co||!co.ticker)return '';
-  return STOCK_ANALYSES_BASE+'/'+co.ticker;
-}
 
 const SEED=[
   {id:'xiaomi',ticker:'1810.HK',name:'Xiaomi Corporation',exchange:'HKEX',sector:'Tech/Consumer',price:'HK$ 22.60',priceDate:'03.03.2026',w52:'11.94-35.90',scores:{gm:8,bg:7,qu:8,wa:9,bw:8,cf:8,ri:7,ta:9},rating:'KAUFEN',zielkurs:'HK$ 35-42',upside:'+55-87%',downside:'-15%',rr:'1:4',horizont:'2-4 J.',badges:['EV','AIoT','Smartphones'],chatUrl:'https://claude.ai/chat/e4c73bdc-63c3-4084-b41e-43ba145eb200',analyseUrl:'https://xiaomi829183333.netlify.app/',events:[{id:'e1',title:'FY2025 Jahresergebnisse',date:'Mitte März 2026',dateSort:'2026-03-15',priority:'high',desc:'Erstes vollständiges Jahresbild mit EV-Umsatzanteil.',wd:[{t:'up',text:'EV-Marge >= 15% -> nachkaufen.'},{t:'down',text:'EV-Marge < 8% -> 30-50% reduzieren.'}]},{id:'e2',title:'SU7 Ultra Hochlauf',date:'Q2 2026',dateSort:'2026-05-01',priority:'med',desc:'SU7 Ultra Listenpreis RMB 529.900.',wd:[{t:'up',text:'Bestellwoche >= 15.000 -> aufstocken.'},{t:'down',text:'< 5.000 Bestellungen -> trimmen.'}]},{id:'e3',title:'EMEA-Expansion & AIoT',date:'H2 2026',dateSort:'2026-07-01',priority:'blue',desc:'Int. Umsatzanteil ~42%; EMEA-ASP Ziel EUR 450-500.',wd:[{t:'up',text:'EMEA-ASP >= EUR 380 -> Zielkurs HK$ 42-50.'},{t:'down',text:'EMEA < 10% Marktanteil -> reduzieren.'}]}]},
@@ -186,15 +180,15 @@ const SEED=[
   {id:'team',ticker:'TEAM',name:'Atlassian Corporation',exchange:'NASDAQ',sector:'DevOps SaaS',price:'~$79',priceDate:'27.02.2026',w52:'~$68-$290',scores:{gm:8,bg:7,qu:8,wa:7,bw:9,cf:8,ri:5,ta:3},rating:'KAUFEN',zielkurs:'$140-200',upside:'+80-150%',downside:'-14%',rr:'1:6-11',horizont:'2-4 J.',badges:['DevOps','Rovo AI','PLG'],chatUrl:'https://claude.ai/chat/2593da9f-269e-492a-9f89-a08f3069a461',analyseUrl:'http://atlassian20260314184500.netlify.app',events:[{id:'e1',title:'Q3 FY2026 Earnings',date:'30. April 2026',dateSort:'2026-04-30',priority:'high',desc:'Guidance: Revenue $1.689-1.697 Mrd. (+21% YoY).',wd:[{t:'up',text:'RPO > 44% + NRR > 120% -> aggressiv nachkaufen.'},{t:'down',text:'NRR < 115% -> Position halbieren.'}]},{id:'e2',title:'Rovo AI-Monetarisierung',date:'H2 2026',dateSort:'2026-08-01',priority:'blue',desc:'Rovo mit 5 Mio. MAU bisher kostenfrei.',wd:[{t:'up',text:'Monetisierungsstrategie -> sofort nachkaufen.'},{t:'neutral',text:'Rovo bleibt kostenfrei -> halten.'}]},{id:'e3',title:'FY2027-Guidance',date:'August 2026',dateSort:'2026-08-15',priority:'med',desc:'Data-Center wird FY2027 "meaningfully down" gehen.',wd:[{t:'up',text:'20%+ CAGR bestätigt -> Vollposition aufbauen.'},{t:'down',text:'< 15% Wachstum -> 50% reduzieren.'}]}]}
 ];
 
-const SL={gm:'Geschäftsmodell',bg:'Burggraben',qu:'Quartale',wa:'Wachstum',bw:'Bewertung',cf:'Cashflow',pe:'Peer-Vergleich',ri:'Risiken (inv.)',ta:'Technisch'};
+const SL={gm:'Geschäftsmodell',bg:'Burggraben',qu:'Quartale',wa:'Wachstum',bw:'Bewertung',cf:'Cashflow',ri:'Risiken (inv.)',ta:'Technisch'};
 const PC={high:'#ef4444',med:'#f59e0b',blue:'#3b82f6',low:'#22c55e'};
 const RC={KAUFEN:'#22c55e',HALTEN:'#f59e0b',VERKAUFEN:'#ef4444'};
 const WI={up:'▲',down:'▼',neutral:'→'};
 const WC={up:'#22c55e',down:'#ef4444',neutral:'#f59e0b'};
 const BGC={KAUFEN:'badge pill-g',HALTEN:'badge pill-y',VERKAUFEN:'badge pill-r'};
 
-function avg(sc){const vals=Object.values(sc).filter(function(v){return v!==null&&v!==undefined;});return vals.length?Math.round(vals.reduce(function(a,b){return a+b;},0)/vals.length*10)/10:0;}
-function blankCo(){return{id:'co_'+Date.now(),ticker:'',name:'',exchange:'',sector:'',price:'',priceDate:'',w52:'',scores:{gm:5,bg:5,qu:5,wa:5,bw:5,cf:5,pe:null,ri:5,ta:5},rating:'KAUFEN',zielkurs:'',upside:'',downside:'',rr:'',horizont:'',badges:[],chatUrl:'',analyseUrl:'',events:[{id:'e1',title:'',date:'',dateSort:'',priority:'high',desc:'',wd:[]},{id:'e2',title:'',date:'',dateSort:'',priority:'med',desc:'',wd:[]},{id:'e3',title:'',date:'',dateSort:'',priority:'blue',desc:'',wd:[]}]}}
+function avg(sc){return Math.round(Object.values(sc).reduce((a,b)=>a+b,0)/Object.values(sc).length*10)/10}
+function blankCo(){return{id:'co_'+Date.now(),ticker:'',name:'',exchange:'',sector:'',price:'',priceDate:'',w52:'',scores:{gm:5,bg:5,qu:5,wa:5,bw:5,cf:5,ri:5,ta:5},rating:'KAUFEN',zielkurs:'',upside:'',downside:'',rr:'',horizont:'',badges:[],chatUrl:'',analyseUrl:'',events:[{id:'e1',title:'',date:'',dateSort:'',priority:'high',desc:'',wd:[]},{id:'e2',title:'',date:'',dateSort:'',priority:'med',desc:'',wd:[]},{id:'e3',title:'',date:'',dateSort:'',priority:'blue',desc:'',wd:[]}]}}
 
 function ScoreBar({val}){
   return <div className="sb"><div className="sb-track"><div className="sb-fill" style={{width:Math.round(val*10)+'%'}}></div></div><span className="sb-num">{val}</span></div>
@@ -226,7 +220,7 @@ function PortfolioCard({co}){
     <div className="pcard-foot">
       <div className="badges">{co.badges.map((b,i)=><span key={i} className="badge pill-o">{b}</span>)}</div>
       <div className="lnks">
-        {getAnalyseUrl(co)&&<a href={getAnalyseUrl(co)} target="_blank" rel="noopener" className="lbtn lbtn-a">Analyse</a>}
+        {co.analyseUrl&&<a href={co.analyseUrl} target="_blank" rel="noopener" className="lbtn lbtn-a">Analyse</a>}
         {co.chatUrl&&<a href={co.chatUrl} target="_blank" rel="noopener" className="lbtn lbtn-c">Chat</a>}
       </div>
     </div>
@@ -251,7 +245,7 @@ function EventItem({ev,co}){
       {ev.desc&&<div className="tl-desc">{ev.desc}</div>}
       {ev.wd.length>0&&<div className="tl-wd">{ev.wd.map((w,i)=><div key={i} className="wd-row"><span className="wd-ico" style={{color:WC[w.t]}}>{WI[w.t]}</span><span>{w.text}</span></div>)}</div>}
       <div className="tl-lnks">
-        {getAnalyseUrl(co)&&<a href={getAnalyseUrl(co)} target="_blank" rel="noopener" className="lbtn lbtn-a">Analyse</a>}
+        {co.analyseUrl&&<a href={co.analyseUrl} target="_blank" rel="noopener" className="lbtn lbtn-a">Analyse</a>}
         {co.chatUrl&&<a href={co.chatUrl} target="_blank" rel="noopener" className="lbtn lbtn-c">Chat</a>}
       </div>
     </div>
@@ -270,12 +264,17 @@ function OverviewTab({companies}){
   const [sort,setSort]=useState({col:'score',dir:'desc'});
   const total=companies.length;
   const avgSc=total?Math.round(companies.reduce((a,c)=>a+avg(c.scores),0)/total*10)/10:0;
+  const buys=companies.filter(c=>c.rating==='KAUFEN').length;
+  const allEvts=companies.flatMap(c=>c.events.filter(e=>e.title&&e.dateSort)).sort((a,b)=>parseDateSort(a.dateSort)>parseDateSort(b.dateSort)?1:-1);
+  const nextEvt=allEvts[0];
+  const nextCo=nextEvt?companies.find(c=>c.events.some(e=>e.id===nextEvt.id)):null;
   if(!total) return <div className="empty">Noch keine Analysen vorhanden.</div>;
 
   const sorted=[...companies].sort((a,b)=>{
     let av,bv;
     if(sort.col==='name'){av=a.name;bv=b.name;}
     else if(sort.col==='score'){av=avg(a.scores);bv=avg(b.scores);}
+    else if(sort.col==='ta'){av=a.scores.ta;bv=b.scores.ta;}
     else if(sort.col==='rating'){
       const RM={KAUFEN:0,HALTEN:1,VERKAUFEN:2};
       av=RM[a.rating]!=null?RM[a.rating]:3;
@@ -283,8 +282,7 @@ function OverviewTab({companies}){
     }
     else if(sort.col==='upside'){av=parseFloat((a.upside||'').replace(/[^0-9.-]/g,''))||0;bv=parseFloat((b.upside||'').replace(/[^0-9.-]/g,''))||0;}
     else if(sort.col==='downside'){av=parseFloat((a.downside||'').replace(/[^0-9.-]/g,''))||0;bv=parseFloat((b.downside||'').replace(/[^0-9.-]/g,''))||0;}
-    else if(sort.col==='priceDate'){av=a.priceDate||'';bv=b.priceDate||'';}
-    else if(sort.col==='perf7d'||sort.col==='perf1m'){
+    else if(sort.col==='perf7d'||sort.col==='perf1m'||sort.col==='perfAnalysis'){
       av=a[sort.col]!=null?a[sort.col]:null;
       bv=b[sort.col]!=null?b[sort.col]:null;
       if(av===null&&bv===null) return 0;
@@ -300,6 +298,10 @@ function OverviewTab({companies}){
     <div className="kpi-grid">
       <div className="kpi"><div className="kpi-l">Analysen</div><div className="kpi-v" style={{color:'var(--pri)'}}>{total}</div><div className="kpi-s">Canvas v2.2</div></div>
       <div className="kpi"><div className="kpi-l">Ø Score</div><div className="kpi-v" style={{color:'var(--pri)'}}>{avgSc}/10</div></div>
+      <div className="kpi"><div className="kpi-l">Ratings</div><div className="kpi-v" style={{color:'var(--grn)'}}>{buys}x Kaufen</div><div className="kpi-s">{companies.filter(c=>c.rating==='HALTEN').length}x Halten · {companies.filter(c=>c.rating==='VERKAUFEN').length}x Verkaufen</div></div>
+      <div className="kpi"><div className="kpi-l">Nächster Event</div><div className="kpi-v" style={{color:'var(--blu)',fontSize:14}}>{nextEvt?nextEvt.date:'–'}</div><div className="kpi-s">{nextCo?nextCo.ticker:''}{nextEvt?' · '+nextEvt.title.slice(0,18)+'…':''}</div></div>
+      <div className="kpi"><div className="kpi-l">Technisch bullisch</div><div className="kpi-v" style={{color:'var(--yel)'}}>{companies.filter(c=>c.scores.ta>=7).length}x</div><div className="kpi-s">{companies.filter(c=>c.scores.ta<5).length}x bärisch</div></div>
+      <div className="kpi"><div className="kpi-l">Events</div><div className="kpi-v" style={{color:'var(--pri)'}}>{allEvts.length}</div><div className="kpi-s">Upcoming</div></div>
     </div>
     <div className="sec" style={{marginBottom:24}}>
       <div className="sec-hdr">Vergleichsübersicht</div>
@@ -308,37 +310,38 @@ function OverviewTab({companies}){
           <SortTh label="Unternehmen" col="name" sort={sort} setSort={setSort}/>
           <SortTh label="Score" col="score" sort={sort} setSort={setSort}/>
           <SortTh label="Rating" col="rating" sort={sort} setSort={setSort}/>
-          <th>Preis</th>
+          <SortTh label="Technisch" col="ta" sort={sort} setSort={setSort}/>
+          <th>Analyse</th>
+          <SortTh label="Perf. seit Analyse" col="perfAnalysis" sort={sort} setSort={setSort}/>
           <SortTh label="Upside" col="upside" sort={sort} setSort={setSort}/>
           <SortTh label="Downside" col="downside" sort={sort} setSort={setSort}/>
-          <SortTh label="Analyse" col="priceDate" sort={sort} setSort={setSort}/>
-          <th>Aktuell</th>
-          <th>Δ</th>
           <SortTh label="7T" col="perf7d" sort={sort} setSort={setSort}/>
           <SortTh label="1M" col="perf1m" sort={sort} setSort={setSort}/>
           <th>Links</th>
         </tr></thead>
         <tbody>{sorted.map(c=>{
           const sc=avg(c.scores);
+          const ta=c.scores.ta||0;
+          const taColor=ta>=7?'var(--grn)':ta>=5?'var(--yel)':'var(--red)';
           const p7=c.perf7d!=null?c.perf7d:null;
           const p1m=c.perf1m!=null?c.perf1m:null;
-          const parseNum=function(s){if(!s) return null; var m=String(s).replace(/,/g,'.').match(/[\d]+(?:\.\d+)?/); return m?parseFloat(m[0]):null;};
-          const apNum=parseNum(c.price);
-          const cpNum=parseNum(c.currentPrice);
-          const delta=(apNum&&cpNum)?Math.round(((cpNum-apNum)/apNum)*1000)/10:null;
-          const priceDisplay=c.price?<span>{c.price}</span>:<span style={{color:'var(--mut)'}}>–</span>;
+          const parseP=s=>{if(!s)return null;const m=(s||'').replace(/,/g,'.').match(/[\d]+(?:\.\d+)?/);return m?parseFloat(m[0]):null;};
+          const ap=parseP(c.price);
+          const cp=parseP(c.currentPrice);
+          let perfSinceEl=<span style={{color:'var(--dim)',fontSize:10}}>–</span>;
+          if(ap&&cp&&ap!==cp){
+            const pa=Math.round(((cp-ap)/ap)*1000)/10;
+            if(Math.abs(pa)<=200) perfSinceEl=<span style={{fontWeight:600,fontSize:12,color:pa>=0?'var(--grn)':'var(--red)'}}>{pa>=0?'+':''}{pa.toFixed(1)}%</span>;
+          }
           return <tr key={c.id}>
             <td><strong>{c.name}</strong><br/><span style={{color:'var(--dim)',fontSize:10}}>{c.ticker} · {c.exchange}</span></td>
             <td><span style={{color:'var(--pri)',fontWeight:700}}>{sc}</span></td>
             <td><span className={BGC[c.rating]||'badge'} style={{fontSize:11}}>{c.rating}</span></td>
-            <td style={{fontSize:12,fontWeight:600}}>{priceDisplay}</td>
+            <td><span style={{color:taColor,fontWeight:700}}>{ta}/10</span></td>
+            <td style={{fontSize:11,color:'var(--mut)'}}>{c.priceDate||'–'}</td>
+            <td>{perfSinceEl}</td>
             <td style={{color:'var(--grn)',fontWeight:600,fontSize:12}}>{c.upside}</td>
             <td style={{color:'var(--red)',fontWeight:600,fontSize:12}}>{c.downside}</td>
-            <td style={{fontSize:12,fontWeight:600,color:'var(--mut)'}}>{c.priceDate||'–'}</td>
-            <td style={{fontSize:12,fontWeight:600}}>{c.currentPrice||<span style={{color:'var(--dim)'}}>–</span>}</td>
-            <td style={{fontSize:12,fontWeight:600,color:delta==null?'var(--dim)':delta>=0?'var(--grn)':'var(--red)'}}>
-              {delta==null?'–':(delta>=0?'+':'')+delta.toFixed(1)+'%'}
-            </td>
             <td style={{fontWeight:600,fontSize:12,color:p7==null?'var(--dim)':p7>=0?'var(--grn)':'var(--red)'}}>
               {p7==null?<span style={{color:'var(--dim)',fontSize:10}}>–</span>:(p7>=0?'+':'')+p7.toFixed(1)+'%'}
             </td>
@@ -346,7 +349,7 @@ function OverviewTab({companies}){
               {p1m==null?<span style={{color:'var(--dim)',fontSize:10}}>–</span>:(p1m>=0?'+':'')+p1m.toFixed(1)+'%'}
             </td>
             <td style={{whiteSpace:'nowrap'}}>
-              {getAnalyseUrl(c)&&<a href={getAnalyseUrl(c)} target="_blank" rel="noopener" className="lbtn lbtn-a" style={{fontSize:10,marginRight:3}}>Analyse</a>}
+              {c.analyseUrl&&<a href={c.analyseUrl} target="_blank" rel="noopener" className="lbtn lbtn-a" style={{fontSize:10,marginRight:3}}>Analyse</a>}
               {c.chatUrl&&<a href={c.chatUrl} target="_blank" rel="noopener" className="lbtn lbtn-c" style={{fontSize:10}}>Chat</a>}
             </td>
           </tr>
@@ -482,12 +485,7 @@ function FeedTab({companies,newsCache}){
           var count=companies.reduce(function(acc,co){
             var evts=(co.events||[]).filter(function(e){return e.title&&e.dateSort;});
             if(v==='upcoming') return acc+(evts.filter(function(e){return new Date(parseDateSort(e.dateSort))>=today;}).length>0?1:0);
-            if(v==='overdue'){
-              var hasOverdueEvts=evts.filter(function(e){return new Date(parseDateSort(e.dateSort))<today;}).length>0;
-              if(!hasOverdueEvts) return acc;
-              var hasNewsMatch=!!(newsCache&&newsCache.find(function(n){return n.ticker===co.ticker;}));
-              return acc+(hasNewsMatch?0:1);
-            }
+            if(v==='overdue') return acc+(evts.filter(function(e){return new Date(parseDateSort(e.dateSort))<today;}).length>0?1:0);
             return acc+((newsCache&&newsCache.find(function(n){return n.ticker===co.ticker;}))?1:0);
           },0);
           return <button key={v} className={'chip'+(viewMode===v?' active':'')} onClick={function(){setViewMode(v);setTickerFilter('all');}}>
@@ -495,9 +493,9 @@ function FeedTab({companies,newsCache}){
           </button>;
         })}
         <div style={{width:1,height:20,background:'var(--brd)',margin:'0 4px'}}/>
-        {['event','ticker'].map(function(s){
+        {['event','news','ticker'].map(function(s){
           return <button key={s} className={'chip'+(sortBy===s?' active':'')} onClick={function(){setSortBy(s);}}>
-            {s==='event'?'📅 Event':'🔤 A-Z'}
+            {s==='event'?'📅 Event':s==='news'?'📰 News':'🔤 A-Z'}
           </button>;
         })}
         <span style={{marginLeft:'auto',fontSize:12,color:'var(--mut)',fontWeight:600}}>{rows.length} Aktien</span>
@@ -612,7 +610,7 @@ function EventsTab({companies,newsCache}){
   });
 
   var upcomingEvts=allEvts.filter(function(e){return !e.overdue;});
-  var overdueEvts=allEvts.filter(function(e){var co=companies.find(function(c){return c.id===e.coId;});return e.overdue&&!e.match&&!!co;});
+  var overdueEvts=allEvts.filter(function(e){return e.overdue&&!e.match;});
   var historyEvts=allEvts.filter(function(e){return !!e.match;});
 
   var displayed=view==='upcoming'?upcomingEvts:view==='overdue'?overdueEvts:historyEvts;
@@ -628,7 +626,7 @@ function EventsTab({companies,newsCache}){
       var co=companies.find(function(c){return c.id===e.coId;});
       return co?co.ticker+' | Event: '+e.title+' (erwartet: '+e.date+')':'';
     }).filter(Boolean).join('\n');
-    var prompt='Overdue Event News-Recherche fuer '+overdueEvts.length+' ueberfaellige Investment-Events:\n\n'+evList+'\n\nBitte suche gezielt nach News die zeigen ob diese Events eingetreten sind oder relevante Updates gibt. Nur Events mit wirklich passenden News aufnehmen. Antworte mit JSON-Array (kein Markdown):\n[{"ticker":"...","eventId":"...","ampel":"gruen","headline":"1 Satz","news":[{"title":"...","date":"TT.MM.JJJJ","url":"https://..."}],"searchedAt":"JJJJ-MM-TT"}]\n\nWICHTIG: Am Ende den kompletten newsCache als JSON-Block ausgeben (```json [...] ```) damit er in die Portfolio-App kopiert werden kann. KEIN Artifact, KEIN Download.';
+    var prompt='Overdue Event News-Recherche fuer '+overdueEvts.length+' ueberfaellige Investment-Events:\n\n'+evList+'\n\nBitte suche gezielt nach News die zeigen ob diese Events eingetreten sind oder relevante Updates gibt. Nur Events mit wirklich passenden News aufnehmen. Antworte mit JSON-Array (kein Markdown):\n[{"ticker":"...","eventId":"...","ampel":"gruen","headline":"1 Satz","news":[{"title":"...","date":"TT.MM.JJJJ","url":"https://..."}],"searchedAt":"JJJJ-MM-TT"}]\n\nWICHTIG: Am Ende den kompletten newsCache als JSON-Block ausgeben (\x60\x60\x60json [...]\x60\x60\x60) damit er in die Portfolio-App kopiert werden kann. KEIN Artifact, KEIN Download.';
     window.open('https://claude.ai/new?q='+encodeURIComponent(prompt),'_blank');
   }
 
@@ -693,7 +691,7 @@ function EventsTab({companies,newsCache}){
                 </div>}
                 {view==='overdue'&&e.match&&e.match.searchedAt&&!e.match.news&&<div style={{fontSize:11,color:'var(--dim)',marginTop:6}}>Letzte Suche: {e.match.searchedAt} — keine relevanten News gefunden</div>}
                 <div className="tl-lnks">
-                  {getAnalyseUrl(co)&&<a href={getAnalyseUrl(co)} target="_blank" rel="noopener" className="lbtn lbtn-a">Analyse</a>}
+                  {co.analyseUrl&&<a href={co.analyseUrl} target="_blank" rel="noopener" className="lbtn lbtn-a">Analyse</a>}
                   {co.chatUrl&&<a href={co.chatUrl} target="_blank" rel="noopener" className="lbtn lbtn-c">Chat</a>}
                 </div>
               </div>
@@ -729,7 +727,7 @@ function NewsTab({companies,newsCache:newsCacheProp,onNewsUpdate}){
 
   function launchUpdate(){
     const tickers=companies.map(c=>c.ticker).filter(Boolean).sort().join(', ');
-    const deployNote='\n\nAusgabe-Format (zwingend): Gib das Ergebnis ausschliesslich als einen einzigen JSON-Block aus, exakt in diesem Format:\n\n```json\n[\n  {\n    "ticker": "MU",\n    "ampel": "gruen",\n    "headline": "Ein Satz Zusammenfassung",\n    "news": [\n      {"title": "Titel der News", "date": "22.03.2026", "url": "https://..."},\n      {"title": "Weiterer Artikel", "date": "20.03.2026", "url": "https://..."}\n    ],\n    "searchedAt": "2026-03-28"\n  }\n]\n```\n\nDer JSON-Block wird direkt in das Paste & Deploy Textfeld der Portfolio-App kopiert. Daher: kein JSX Artifact, kein Deploy-Button, kein erklaerende Text nach dem JSON-Block — nur der reine JSON-Block.';
+    const deployNote='\n\nAusgabe-Format (zwingend): Gib das Ergebnis ausschliesslich als einen einzigen JSON-Block aus, exakt in diesem Format:\n\n\x60\x60\x60json\n[\n  {\n    "ticker": "MU",\n    "ampel": "gruen",\n    "headline": "Ein Satz Zusammenfassung",\n    "news": [\n      {"title": "Titel der News", "date": "22.03.2026", "url": "https://..."},\n      {"title": "Weiterer Artikel", "date": "20.03.2026", "url": "https://..."}\n    ],\n    "searchedAt": "2026-03-28"\n  }\n]\n\x60\x60\x60\n\nDer JSON-Block wird direkt in das Paste & Deploy Textfeld der Portfolio-App kopiert. Daher: kein JSX Artifact, kein Deploy-Button, kein erklaerende Text nach dem JSON-Block — nur der reine JSON-Block.';
     // Build list of overdue + upcoming events per ticker for prompt context
     const eventContext=companies.map(function(co){
       var today=new Date(); today.setHours(0,0,0,0);
@@ -743,7 +741,7 @@ function NewsTab({companies,newsCache:newsCacheProp,onNewsUpdate}){
     window.open('https://claude.ai/new?q='+encodeURIComponent(prompt),'_blank');
   }
 
-  const aIcon=a=>a==='gruen'?'🟢':a==='gelb'?'🟡':'🔴';
+  const aIcon=a=>a==='gruen'?'🟢':a==='gelb'?'🟡':'🔴\n\nWICHTIG: Am Ende den kompletten newsCache als JSON-Block ausgeben (\x60\x60\x60json [...]\x60\x60\x60) damit er in die Portfolio-App kopiert werden kann. KEIN Artifact, KEIN Download.';
   const aLabel=a=>a==='gruen'?'Positiv':a==='gelb'?'Neutral':'Risiko';
   const aColor=a=>a==='gruen'?'var(--grn)':a==='gelb'?'var(--yel)':'var(--red)';
 
@@ -769,7 +767,7 @@ function NewsTab({companies,newsCache:newsCacheProp,onNewsUpdate}){
     setDeploying(true); setDeployMsg('');
     try{
       const raw=pasteVal.trim();
-      const clean=raw.replace(/```json/g,'').replace(/```/g,'').trim();
+      var clean=raw;while(clean.indexOf('\x60\x60\x60json')>=0){clean=clean.replace('\x60\x60\x60json','');}while(clean.indexOf('\x60\x60\x60')>=0){clean=clean.replace('\x60\x60\x60','');}clean=clean.trim();
       const nc=JSON.parse(clean);
       if(!Array.isArray(nc)) throw new Error('Kein Array');
       const r=await fetch('/api/deploy-news',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({newsCache:nc})});
@@ -834,7 +832,7 @@ function NewsTab({companies,newsCache:newsCacheProp,onNewsUpdate}){
               </div>)}
             </div>}
             <div style={{display:'flex',gap:6,marginTop:8}}>
-              {co&&getAnalyseUrl(co)&&<a href={getAnalyseUrl(co)} target="_blank" rel="noopener" className="lbtn lbtn-a" style={{fontSize:10}}>Analyse</a>}
+              {co&&co.analyseUrl&&<a href={co.analyseUrl} target="_blank" rel="noopener" className="lbtn lbtn-a" style={{fontSize:10}}>Analyse</a>}
               {co&&co.chatUrl&&<a href={co.chatUrl} target="_blank" rel="noopener" className="lbtn lbtn-c" style={{fontSize:10}}>Chat</a>}
             </div>
           </div>
@@ -848,7 +846,7 @@ function ModalForm({co,onSave,onClose}){
   const [d,setD]=useState(()=>JSON.parse(JSON.stringify(co)));
   const [mt,setMt]=useState('info');
   const setF=(f,v)=>setD(p=>({...p,[f]:v}));
-  const setScore=(k,v)=>setD(p=>({...p,scores:{...p.scores,[k]:v===''?null:Math.max(0,Math.min(10,parseFloat(v)||0))}}));
+  const setScore=(k,v)=>setD(p=>({...p,scores:{...p.scores,[k]:Math.max(0,Math.min(10,parseFloat(v)||0))}}));
   const setEvt=(i,f,v)=>setD(p=>{const ev=[...p.events];ev[i]={...ev[i],[f]:v};return{...p,events:ev}});
   const addWd=(i)=>setD(p=>{const ev=[...p.events];ev[i]={...ev[i],wd:[...ev[i].wd,{t:'up',text:''}]};return{...p,events:ev}});
   const setWd=(ei,wi,f,v)=>setD(p=>{const ev=[...p.events];const wd=[...ev[ei].wd];wd[wi]={...wd[wi],[f]:v};ev[ei]={...ev[ei],wd};return{...p,events:ev}});
@@ -867,7 +865,7 @@ function ModalForm({co,onSave,onClose}){
         </div>}
         {mt==='scores'&&<div>
           <div className="avg-score-box"><div className="lbl">Gesamtscore</div><div className="big">{sc}/10</div></div>
-          {Object.entries(SL).map(([k,lbl])=>{const sv=d.scores[k];const isNull=sv===null||sv===undefined;return <div key={k} className="score-row"><span className="score-lbl">{lbl}</span><input type="number" className="score-inp" min="0" max="10" step="0.5" placeholder={isNull?'–':''} value={isNull?'':sv} onChange={e=>setScore(k,e.target.value)}/><div className="score-bar-wrap"><div className="score-bar-live" style={{width:isNull?'0%':(sv*10)+'%',opacity:isNull?0.3:1}}></div></div><span style={{fontSize:11,color:isNull?'var(--dim)':sv>=8?'var(--grn)':sv>=6?'var(--yel)':'var(--red)',minWidth:32,textAlign:'right'}}>{isNull?'–':sv+'/10'}</span></div>;})}
+          {Object.entries(SL).map(([k,lbl])=><div key={k} className="score-row"><span className="score-lbl">{lbl}</span><input type="number" className="score-inp" min="0" max="10" step="0.5" value={d.scores[k]} onChange={e=>setScore(k,e.target.value)}/><div className="score-bar-wrap"><div className="score-bar-live" style={{width:(d.scores[k]*10)+'%'}}></div></div><span style={{fontSize:11,color:d.scores[k]>=8?'var(--grn)':d.scores[k]>=6?'var(--yel)':'var(--red)',minWidth:32,textAlign:'right'}}>{d.scores[k]}/10</span></div>)}
         </div>}
         {mt==='invest'&&<div>
           <div className="fld"><label>Rating</label><select value={d.rating} onChange={e=>setF('rating',e.target.value)}><option value="KAUFEN">KAUFEN</option><option value="HALTEN">HALTEN</option><option value="VERKAUFEN">VERKAUFEN</option></select></div>
@@ -896,7 +894,47 @@ function ModalForm({co,onSave,onClose}){
 }
 
 function ManageTab({companies,onAdd,onEdit,onDelete,onReset,onSync,onPush,syncing}){
+  const [analysePaste,setAnalysePaste]=useState('');
+  const [analyseDeploying,setAnalyseDeploying]=useState(false);
+  const [analyseMsg,setAnalyseMsg]=useState('');
+
+  async function deployAnalyse(){
+    setAnalyseDeploying(true); setAnalyseMsg('');
+    try{
+      const raw=analysePaste.trim();
+      var clean=raw;while(clean.indexOf('\x60\x60\x60json')>=0){clean=clean.replace('\x60\x60\x60json','');}while(clean.indexOf('\x60\x60\x60')>=0){clean=clean.replace('\x60\x60\x60','');}clean=clean.trim();
+      const co=JSON.parse(clean);
+      if(!co.ticker) throw new Error('ticker fehlt');
+      const r=await fetch('/api/deploy-analysis',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({company:co})});
+      const d=await r.json();
+      if(!d.ok) throw new Error(d.error||'Unbekannter Fehler');
+      setAnalyseMsg((d.action==='created'?'✅ Neue Aktie angelegt: ':'✅ Analyse aktualisiert: ')+d.ticker+' ('+d.total+' Aktien gesamt)');
+      setAnalysePaste('');
+      if(onSync) onSync();
+    }catch(e){setAnalyseMsg('❌ '+e.message);}
+    setAnalyseDeploying(false);
+  }
+
   return <div>
+    {/* Analyse Deploy Section */}
+    <div className="sec" style={{marginBottom:20}}>
+      <div className="sec-hdr">Analyse deployen</div>
+      <div style={{padding:'16px 20px'}}>
+        <p style={{fontSize:13,color:'var(--mut)',marginBottom:12}}>Nach einer fertigen Aktienanalyse: JSON-Block aus dem Chat kopieren und hier einfügen. Aktualisiert die Kerndaten in JSONBin ohne bestehende Events zu überschreiben.</p>
+        <div style={{marginBottom:10}}>
+          <label>JSON aus Analyse-Chat einfügen</label>
+          <textarea value={analysePaste} onChange={function(e){setAnalysePaste(e.target.value);}} placeholder={'{ "ticker": "AAPL", "name": "...", "scores": {...}, "rating": "KAUFEN", ... }'} style={{height:140,resize:'vertical',fontFamily:'monospace',fontSize:12}}/>
+        </div>
+        <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+          <button className="btn btn-pri" onClick={deployAnalyse} disabled={!analysePaste.trim()||analyseDeploying}>
+            {analyseDeploying?'Wird deployed...':'Analyse deployen'}
+          </button>
+          {analysePaste&&<button className="btn" onClick={function(){setAnalysePaste('');setAnalyseMsg('');}}>Leeren</button>}
+        </div>
+        {analyseMsg&&<div style={{marginTop:10,fontSize:13,color:analyseMsg.startsWith('✅')?'var(--grn)':'var(--red)',background:analyseMsg.startsWith('✅')?'#ECFDF5':'#FEF2F2',border:'1px solid '+(analyseMsg.startsWith('✅')?'#A7F3D0':'#FECACA'),borderRadius:8,padding:'8px 12px'}}>{analyseMsg}</div>}
+      </div>
+    </div>
+
     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16,flexWrap:'wrap',gap:8}}>
       <span style={{fontSize:13,color:'var(--mut)'}}>{companies.length} Analysen</span>
       <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
@@ -915,7 +953,7 @@ function ManageTab({companies,onAdd,onEdit,onDelete,onReset,onSync,onPush,syncin
           <div style={{fontSize:12,color:'var(--mut)'}}>{c.zielkurs} · {c.upside}</div>
         </div>
         <div className="co-btns">
-          {getAnalyseUrl(c)&&<a href={getAnalyseUrl(c)} target="_blank" rel="noopener" className="lbtn lbtn-a" style={{fontSize:11}}>Analyse</a>}
+          {c.analyseUrl&&<a href={c.analyseUrl} target="_blank" rel="noopener" className="lbtn lbtn-a" style={{fontSize:11}}>Analyse</a>}
           {c.chatUrl&&<a href={c.chatUrl} target="_blank" rel="noopener" className="lbtn lbtn-c" style={{fontSize:11}}>Chat</a>}
           <button className="btn" onClick={()=>onEdit(c)}>Edit</button>
           <button className="btn btn-red" onClick={()=>onDelete(c.id)}>X</button>
@@ -930,7 +968,7 @@ function MakeTab(){
     <div className="info-box"><strong>Vollautomatischer Flow:</strong> Am Ende jeder Claude-Analyse erscheint ein Deploy-Button. Ein Klick sendet HTML + JSON an Make.com — Netlify und JSONBin werden automatisch aktualisiert.</div>
     <div className="settings-sec">
       <h3>Make.com Webhook Body</h3>
-      <div className="code-box">{'{"companies": {{1.companies}}'}</div>
+      <div className="code-box">{'{"companies": "{{1.companies}}"'}</div>
     </div>
   </div>
 }
@@ -957,13 +995,10 @@ function App(){
       try{const r=localStorage.getItem(SK);data=r?JSON.parse(r):SEED;}catch(e){data=SEED;}
       setSyncStatus('spin');
       try{
-        const r1=await fetch(GITHUB_INDEX_URL+'?t='+Date.now());
+        const r1=await fetch('https://api.jsonbin.io/v3/b/'+JSONBIN_ID+'/latest',{headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':'false'}});
         if(r1.ok){const d=await r1.json();
           if(d.companies&&d.companies.length>0){data=d.companies;}
-        }
-        const r2=await fetch('https://api.jsonbin.io/v3/b/'+JSONBIN_ID+'/latest',{headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':'false'}});
-        if(r2.ok){const d2=await r2.json();
-          if(d2.newsCache&&Array.isArray(d2.newsCache)&&d2.newsCache.length>0){setNewsCache(d2.newsCache);setNewsCacheUpdatedAt(d2.newsCacheUpdatedAt||'');}
+          if(d.newsCache&&Array.isArray(d.newsCache)&&d.newsCache.length>0){setNewsCache(d.newsCache);setNewsCacheUpdatedAt(d.newsCacheUpdatedAt||'');}
         }
         setSyncStatus('ok');
       }catch(e){setSyncStatus('err');}
@@ -982,14 +1017,11 @@ function App(){
   const syncFromJSONBin=async()=>{
     setSyncing(true);
     try{
-      const r1=await fetch(GITHUB_INDEX_URL+'?t='+Date.now());
-      if(!r1.ok) throw new Error('GitHub HTTP '+r1.status);
+      const r1=await fetch('https://api.jsonbin.io/v3/b/'+JSONBIN_ID+'/latest',{headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':'false'}});
+      if(!r1.ok) throw new Error('HTTP '+r1.status);
       const d=await r1.json();
-      if(d.companies&&Array.isArray(d.companies)){setCos(d.companies);localStorage.setItem(SK,JSON.stringify(d.companies));setToast({msg:d.companies.length+' Analysen geladen (GitHub)'});setSyncStatus('ok');}
-      const r2=await fetch('https://api.jsonbin.io/v3/b/'+JSONBIN_ID+'/latest',{headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':'false'}});
-      if(r2.ok){const d2=await r2.json();
-        if(d2.newsCache&&Array.isArray(d2.newsCache)&&d2.newsCache.length>0){setNewsCache(d2.newsCache);setNewsCacheUpdatedAt(d2.newsCacheUpdatedAt||'');}
-      }
+      if(d.companies&&Array.isArray(d.companies)){setCos(d.companies);localStorage.setItem(SK,JSON.stringify(d.companies));setToast({msg:d.companies.length+' Analysen geladen'});setSyncStatus('ok');}
+      if(d.newsCache&&Array.isArray(d.newsCache)&&d.newsCache.length>0){setNewsCache(d.newsCache);setNewsCacheUpdatedAt(d.newsCacheUpdatedAt||'');}
     }catch(e){setToast({msg:'Sync fehlgeschlagen: '+e.message,err:true});setSyncStatus('err');}
     setSyncing(false);
   };
@@ -1030,12 +1062,14 @@ function App(){
       <button className={'tab'+(tab==='feed'?' active':'')} onClick={()=>setTab('feed')}>Events</button>
       <button className={'tab'+(tab==='news'?' active':'')} onClick={()=>setTab('news')}>News Scan</button>
       <button className={'tab'+(tab==='manage'?' active':'')} onClick={()=>setTab('manage')}>Verwalten</button>
+      <button className={'tab'+(tab==='make'?' active':'')} onClick={()=>setTab('make')}>Make.com</button>
     </div>
     <div className="main">
       {tab==='overview'&&<OverviewTab companies={cos}/>}
-      {tab==='feed'&&<EventsTab companies={cos} newsCache={newsCache}/>}
+      {tab==='feed'&&<FeedTab companies={cos} newsCache={newsCache}/>}
       {tab==='news'&&<NewsTab companies={cos} newsCache={newsCache} onNewsUpdate={function(nc){setNewsCache(nc);setNewsCacheUpdatedAt(new Date().toISOString());}}/>}
       {tab==='manage'&&<ManageTab companies={cos} onAdd={()=>setModal(blankCo())} onEdit={c=>setModal(JSON.parse(JSON.stringify(c)))} onDelete={del} onReset={reset} onSync={syncFromJSONBin} onPush={pushToJSONBin} syncing={syncing}/>}
+      {tab==='make'&&<MakeTab/>}
     </div>
     {modal&&<ModalForm co={modal} onSave={save} onClose={()=>setModal(null)}/>}
     {toast&&<Toast msg={toast.msg} err={toast.err} onDone={()=>setToast(null)}/>}
