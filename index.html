@@ -1014,6 +1014,7 @@ function App(){
         }
         setSyncStatus('ok');
       }catch(e){setSyncStatus('err');}
+      data=data.map(function(c){return Object.assign({},c,{events:Array.isArray(c.events)?c.events:[],scores:c.scores||{gm:5,bg:5,qu:5,wa:5,bw:5,cf:5,ri:5,ta:5}});});
       setCos(data);
       setLoaded(true);
     }
