@@ -180,7 +180,7 @@ const SEED=[
   {id:'team',ticker:'TEAM',name:'Atlassian Corporation',exchange:'NASDAQ',sector:'DevOps SaaS',price:'~$79',priceDate:'27.02.2026',w52:'~$68-$290',scores:{gm:8,bg:7,qu:8,wa:7,bw:9,cf:8,ri:5,ta:3},rating:'KAUFEN',zielkurs:'$140-200',upside:'+80-150%',downside:'-14%',rr:'1:6-11',horizont:'2-4 J.',badges:['DevOps','Rovo AI','PLG'],chatUrl:'https://claude.ai/chat/2593da9f-269e-492a-9f89-a08f3069a461',analyseUrl:'http://atlassian20260314184500.netlify.app',events:[{id:'e1',title:'Q3 FY2026 Earnings',date:'30. April 2026',dateSort:'2026-04-30',priority:'high',desc:'Guidance: Revenue $1.689-1.697 Mrd. (+21% YoY).',wd:[{t:'up',text:'RPO > 44% + NRR > 120% -> aggressiv nachkaufen.'},{t:'down',text:'NRR < 115% -> Position halbieren.'}]},{id:'e2',title:'Rovo AI-Monetarisierung',date:'H2 2026',dateSort:'2026-08-01',priority:'blue',desc:'Rovo mit 5 Mio. MAU bisher kostenfrei.',wd:[{t:'up',text:'Monetisierungsstrategie -> sofort nachkaufen.'},{t:'neutral',text:'Rovo bleibt kostenfrei -> halten.'}]},{id:'e3',title:'FY2027-Guidance',date:'August 2026',dateSort:'2026-08-15',priority:'med',desc:'Data-Center wird FY2027 "meaningfully down" gehen.',wd:[{t:'up',text:'20%+ CAGR bestätigt -> Vollposition aufbauen.'},{t:'down',text:'< 15% Wachstum -> 50% reduzieren.'}]}]}
 ];
 
-const SL={gm:'Geschäftsmodell',bg:'Burggraben',qu:'Quartale',wa:'Wachstum',bw:'Bewertung',cf:'Cashflow',ri:'Risiken (inv.)',ta:'Technisch'};
+const SL={gm:'Geschäftsmodell',bg:'Burggraben',qu:'Quartale',wa:'Wachstum',bw:'Bewertung',cf:'Cashflow',ri:'Risiken (inv.)',ta:'Technisch',pe:'Peer-Vergleich'};
 const PC={high:'#ef4444',med:'#f59e0b',blue:'#3b82f6',low:'#22c55e'};
 const RC={KAUFEN:'#22c55e',HALTEN:'#f59e0b',VERKAUFEN:'#ef4444'};
 const WI={up:'▲',down:'▼',neutral:'→'};
@@ -207,7 +207,7 @@ function PortfolioCard({co}){
     <div className="pcard-body">
       <div style={{fontSize:11,color:'var(--dim)',textTransform:'uppercase',letterSpacing:'.4px',marginBottom:4}}>Oe Score</div>
       <ScoreBar val={sc}/>
-      <div className="pills">{Object.entries(co.scores).map(function([k,v]){return <span key={k} className={'pill '+(v>=8?'pill-g':v>=6?'pill-y':'pill-r')}>{SL[k].split(' ')[0]} {v}</span>})}</div>
+      <div className="pills">{Object.entries(co.scores).filter(function(e){return SL[e[0]]!=null;}).map(function([k,v]){return <span key={k} className={'pill '+(v>=8?'pill-g':v>=6?'pill-y':'pill-r')}>{SL[k].split(' ')[0]} {v}</span>})}</div>
       <div className="drow">
         <div className="di"><span className="di-l">Rating</span><span className="di-v" style={{color:rc}}>{co.rating==='KAUFEN'?'Kaufen':co.rating==='HALTEN'?'Halten':'Verkaufen'}</span></div>
         <div className="di"><span className="di-l">Upside</span><span className="di-v g">{co.upside}</span></div>
@@ -218,7 +218,7 @@ function PortfolioCard({co}){
       {co.events.filter(e=>e.title).length>0&&<div className="evts"><div className="evt-t">Naechste Events</div>{co.events.filter(e=>e.title).map(e=><div key={e.id} className="evt-i"><div className="edot" style={{background:PC[e.priority]||'#888'}}></div><span>{e.date} - {e.title}</span></div>)}</div>}
     </div>
     <div className="pcard-foot">
-      <div className="badges">{co.badges.map((b,i)=><span key={i} className="badge pill-o">{b}</span>)}</div>
+      <div className="badges">{(co.badges||[]).map((b,i)=><span key={i} className="badge pill-o">{b}</span>)}</div>
       <div className="lnks">
         {co.analyseUrl&&<a href={co.analyseUrl} target="_blank" rel="noopener" className="lbtn lbtn-a">Analyse</a>}
         {co.chatUrl&&<a href={co.chatUrl} target="_blank" rel="noopener" className="lbtn lbtn-c">Chat</a>}
