@@ -188,6 +188,7 @@ const WC={up:'#22c55e',down:'#ef4444',neutral:'#f59e0b'};
 const BGC={KAUFEN:'badge pill-g',HALTEN:'badge pill-y',VERKAUFEN:'badge pill-r'};
 
 function avg(sc){if(!sc)return 0;var vals=Object.values(sc).filter(function(v){return v!=null&&v!==undefined;});if(!vals.length)return 0;return Math.round(vals.reduce(function(a,b){return a+b;},0)/vals.length*10)/10;}
+function getAnalyseUrl(co){if(co.analyseUrl)return co.analyseUrl;if(co.ticker)return 'https://v0-stock-analyses.vercel.app/'+co.ticker+'.html';return '';}
 function blankCo(){return{id:'co_'+Date.now(),ticker:'',name:'',exchange:'',sector:'',price:'',priceDate:'',w52:'',scores:{gm:5,bg:5,qu:5,wa:5,bw:5,cf:5,ri:5,ta:5},rating:'KAUFEN',zielkurs:'',upside:'',downside:'',rr:'',horizont:'',badges:[],chatUrl:'',analyseUrl:'',events:[{id:'e1',title:'',date:'',dateSort:'',priority:'high',desc:'',wd:[]},{id:'e2',title:'',date:'',dateSort:'',priority:'med',desc:'',wd:[]},{id:'e3',title:'',date:'',dateSort:'',priority:'blue',desc:'',wd:[]}]}}
 
 function ScoreBar({val}){
@@ -220,7 +221,7 @@ function PortfolioCard({co}){
     <div className="pcard-foot">
       <div className="badges">{(co.badges||[]).map((b,i)=><span key={i} className="badge pill-o">{b}</span>)}</div>
       <div className="lnks">
-        {co.analyseUrl&&<a href={co.analyseUrl} target="_blank" rel="noopener" className="lbtn lbtn-a">Analyse</a>}
+        {getAnalyseUrl(co)&&<a href={getAnalyseUrl(co)} target="_blank" rel="noopener" className="lbtn lbtn-a">Analyse</a>}
         {co.chatUrl&&<a href={co.chatUrl} target="_blank" rel="noopener" className="lbtn lbtn-c">Chat</a>}
       </div>
     </div>
@@ -245,7 +246,7 @@ function EventItem({ev,co}){
       {ev.desc&&<div className="tl-desc">{ev.desc}</div>}
       {ev.wd.length>0&&<div className="tl-wd">{ev.wd.map((w,i)=><div key={i} className="wd-row"><span className="wd-ico" style={{color:WC[w.t]}}>{WI[w.t]}</span><span>{w.text}</span></div>)}</div>}
       <div className="tl-lnks">
-        {co.analyseUrl&&<a href={co.analyseUrl} target="_blank" rel="noopener" className="lbtn lbtn-a">Analyse</a>}
+        {getAnalyseUrl(co)&&<a href={getAnalyseUrl(co)} target="_blank" rel="noopener" className="lbtn lbtn-a">Analyse</a>}
         {co.chatUrl&&<a href={co.chatUrl} target="_blank" rel="noopener" className="lbtn lbtn-c">Chat</a>}
       </div>
     </div>
@@ -349,7 +350,7 @@ function OverviewTab({companies}){
               {p1m==null?<span style={{color:'var(--dim)',fontSize:10}}>–</span>:(p1m>=0?'+':'')+p1m.toFixed(1)+'%'}
             </td>
             <td style={{whiteSpace:'nowrap'}}>
-              {c.analyseUrl&&<a href={c.analyseUrl} target="_blank" rel="noopener" className="lbtn lbtn-a" style={{fontSize:10,marginRight:3}}>Analyse</a>}
+              {getAnalyseUrl(c)&&<a href={getAnalyseUrl(c)} target="_blank" rel="noopener" className="lbtn lbtn-a" style={{fontSize:10,marginRight:3}}>Analyse</a>}
               {c.chatUrl&&<a href={c.chatUrl} target="_blank" rel="noopener" className="lbtn lbtn-c" style={{fontSize:10}}>Chat</a>}
             </td>
           </tr>
@@ -691,7 +692,7 @@ function EventsTab({companies,newsCache}){
                 </div>}
                 {view==='overdue'&&e.match&&e.match.searchedAt&&!e.match.news&&<div style={{fontSize:11,color:'var(--dim)',marginTop:6}}>Letzte Suche: {e.match.searchedAt} — keine relevanten News gefunden</div>}
                 <div className="tl-lnks">
-                  {co.analyseUrl&&<a href={co.analyseUrl} target="_blank" rel="noopener" className="lbtn lbtn-a">Analyse</a>}
+                  {getAnalyseUrl(co)&&<a href={getAnalyseUrl(co)} target="_blank" rel="noopener" className="lbtn lbtn-a">Analyse</a>}
                   {co.chatUrl&&<a href={co.chatUrl} target="_blank" rel="noopener" className="lbtn lbtn-c">Chat</a>}
                 </div>
               </div>
@@ -832,7 +833,7 @@ function NewsTab({companies,newsCache:newsCacheProp,onNewsUpdate}){
               </div>)}
             </div>}
             <div style={{display:'flex',gap:6,marginTop:8}}>
-              {co&&co.analyseUrl&&<a href={co.analyseUrl} target="_blank" rel="noopener" className="lbtn lbtn-a" style={{fontSize:10}}>Analyse</a>}
+              {co&&getAnalyseUrl(co)&&<a href={getAnalyseUrl(co)} target="_blank" rel="noopener" className="lbtn lbtn-a" style={{fontSize:10}}>Analyse</a>}
               {co&&co.chatUrl&&<a href={co.chatUrl} target="_blank" rel="noopener" className="lbtn lbtn-c" style={{fontSize:10}}>Chat</a>}
             </div>
           </div>
@@ -965,7 +966,7 @@ function ManageTab({companies,onAdd,onEdit,onDelete,onReset,onSync,onPush,syncin
           <div style={{fontSize:12,color:'var(--mut)'}}>{c.zielkurs} · {c.upside}</div>
         </div>
         <div className="co-btns">
-          {c.analyseUrl&&<a href={c.analyseUrl} target="_blank" rel="noopener" className="lbtn lbtn-a" style={{fontSize:11}}>Analyse</a>}
+          {getAnalyseUrl(c)&&<a href={getAnalyseUrl(c)} target="_blank" rel="noopener" className="lbtn lbtn-a" style={{fontSize:11}}>Analyse</a>}
           {c.chatUrl&&<a href={c.chatUrl} target="_blank" rel="noopener" className="lbtn lbtn-c" style={{fontSize:11}}>Chat</a>}
           <button className="btn" onClick={()=>onEdit(c)}>Edit</button>
           <button className="btn btn-red" onClick={()=>onDelete(c.id)}>X</button>
