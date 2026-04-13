@@ -325,7 +325,7 @@ function OverviewTab({companies}){
           const taColor=ta>=7?'var(--grn)':ta>=5?'var(--yel)':'var(--red)';
           const p7=c.perf7d!=null?c.perf7d:null;
           const p1m=c.perf1m!=null?c.perf1m:null;
-          const parseP=s=>{if(!s)return null;const m=(s||'').replace(/,/g,'.').match(/[\d]+(?:\.\d+)?/);return m?parseFloat(m[0]):null;};
+          const parseP=s=>{if(!s&&s!==0)return null;const m=String(s).replace(/,/g,'.').match(/[\d]+(?:\.\d+)?/);return m?parseFloat(m[0]):null;};
           const ap=parseP(c.price);
           const cp=parseP(c.currentPrice);
           let perfSinceEl=<span style={{color:'var(--dim)',fontSize:10}}>–</span>;
